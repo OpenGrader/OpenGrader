@@ -13,8 +13,13 @@ import (
 	"github.com/andreyvit/diff"
 )
 
-type cmdOutput struct {
+type CmdOutput struct {
 	savedOutput []byte
+}
+
+type SubmissionResults struct {
+	results map[string]*SubmissionResult
+	order   []string
 }
 
 type SubmissionResult struct {
@@ -24,8 +29,8 @@ type SubmissionResult struct {
 	diff           string
 }
 
-// Allows capturing stdin by setting cmd.Stdin to an instance of cmdOutput
-func (out *cmdOutput) Write(p []byte) (n int, err error) {
+// Allows capturing stdin by setting cmd.Stdin to an instance of CmdOutput
+func (out *CmdOutput) Write(p []byte) (n int, err error) {
 	out.savedOutput = append(out.savedOutput, p...)
 	return 0, nil
 }
@@ -71,13 +76,14 @@ func btoa(b bool) string {
 }
 
 // Write a CSV report with information from $results to $outfile
-func createCsv(results map[string]*SubmissionResult, outfile string) {
+func createCsv(results SubmissionResults, outfile string) {
 	file, err := os.Create(outfile)
 	throw(err)
 
 	writer := csv.NewWriter(file)
 	writer.Write([]string{"student", "compiled", "ran correctly", "diff"})
-	for _, result := range results {
+	for _, id := range results.order {
+		result := results.results[id]
 		row := []string{result.student, btoa(result.compileSuccess), btoa(result.runCorrect), result.diff}
 		if err := writer.Write(row); err != nil {
 			log.Fatalln("error writing record to file", err)
@@ -110,7 +116,7 @@ func compile(dir string, wall bool) bool {
 
 // Run the compiled program in directory $dir with command-line args $args
 func runCompiled(dir, args string) string {
-	var stdout cmdOutput
+	var stdout CmdOutput
 
 	cmd := exec.Command("./a.out", strings.Fields(args)...)
 	cmd.Dir = dir
@@ -144,12 +150,13 @@ func main() {
 	expected := getFile(workDir + "/.spec/out.txt")
 	fmt.Println(expected)
 
-	var results map[string]*SubmissionResult
-	results = make(map[string]*SubmissionResult)
+	var results SubmissionResults
+	results.results = make(map[string]*SubmissionResult)
 
 	for _, dir := range dirs {
 		var result SubmissionResult
-		results[dir] = &result
+		results.results[dir] = &result
+		results.order = append(results.order, dir)
 
 		result.student = dir
 		result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
@@ -160,8 +167,8 @@ func main() {
 		}
 	}
 
-	for result := range results {
-		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", result, results[result].compileSuccess, results[result].runCorrect)
+	for _, id := range results.order {
+		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
 	}
 
 	createCsv(results, outfile)
