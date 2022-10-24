@@ -24,23 +24,27 @@ type SubmissionResult struct {
 	diff           string
 }
 
+// Allows capturing stdin by setting cmd.Stdin to an instance of cmdOutput
 func (out *cmdOutput) Write(p []byte) (n int, err error) {
 	out.savedOutput = append(out.savedOutput, p...)
 	return 0, nil
 }
 
+// Crash if an error is present
 func throw(e error) {
 	if e != nil {
 		panic(e)
 	}
 }
 
+// Load a file $fp into memory
 func getFile(fp string) string {
 	data, err := os.ReadFile(fp)
 	throw(err)
 	return string(data)
 }
 
+// Evaluate a diff to see if they are equal
 func evaluateDiff(diff string) bool {
 	for _, line := range strings.Split(diff, "\n") {
 		if line[0] != ' ' {
@@ -51,12 +55,14 @@ func evaluateDiff(diff string) bool {
 	return true
 }
 
+// Diff two strings
 func compare(expected, actual string) (bool, string) {
 	d := diff.LineDiff(strings.TrimSpace(expected), strings.TrimSpace(actual))
 
 	return evaluateDiff(d), d
 }
 
+// Convert boolean to string
 func btoa(b bool) string {
 	if b {
 		return "true"
@@ -64,6 +70,7 @@ func btoa(b bool) string {
 	return "false"
 }
 
+// Write a CSV report with information from $results to $outfile
 func createCsv(results map[string]*SubmissionResult, outfile string) {
 	file, err := os.Create(outfile)
 	throw(err)
@@ -101,6 +108,7 @@ func compile(dir string, wall bool) bool {
 	return compileErr == nil
 }
 
+// Run the compiled program in directory $dir with command-line args $args
 func runCompiled(dir, args string) string {
 	var stdout cmdOutput
 
