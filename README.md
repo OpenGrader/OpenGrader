@@ -2,7 +2,7 @@
 
 This repo currently includes C++ compilation and grading functionality. It compiles each submission mounted in the `code/` directory of the Docker container and writes a `report.txt` file indicating how the program performed.
 
-## Usage
+## Usage - Docker+Bash
 
 Start by building the docker container:
 
@@ -46,3 +46,22 @@ docker run -v /absolute/path/to/submissions:/code opengrader
 ```
 
 Two files `out.txt` and `report.txt` will be added to each submission folder describing the results.
+
+## Usage - Golang
+
+Install [golang](//go.dev).
+
+Start by grabbing the project's dependencies:
+
+```sh
+go mod init
+```
+
+Then, you can either build or run the project directly:
+
+```sh
+go build grade.go
+./grade -h  # show help docs
+
+go run grade.go -h  # show help docs
+```
