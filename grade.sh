@@ -14,7 +14,7 @@ function grade() {
     echo "Grading $submission..."
     cd "/code/$submission"
 
-    g++ *.cpp && COMPILED=true
+    g++ *.cpp
 
     TIMING=$(time ($RUN_COMMAND >out.txt || echo "<COMPILE ERROR>" >out.txt) 2>&1)
 
