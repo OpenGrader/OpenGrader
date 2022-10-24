@@ -3,7 +3,9 @@ package main
 import (
 	"errors"
 	"os"
+	"path"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -146,5 +148,119 @@ ccc0003,false,false,<diff3>
 		t.Error("Output of createCsv does not match expected.")
 		t.Errorf("Expected\n========\n%s\n========\n\n", expected)
 		t.Errorf("Actual\n======\n%s\n======", actual)
+	}
+}
+
+func TestCompile(t *testing.T) {
+	cpp := `#include <iostream>
+	int main() { std::cout << "Hello world!" << std::endl; }`
+
+	tmp, _ := os.CreateTemp("", "*.cpp")
+	// Removes the created temp file, this will always run
+	defer os.Remove(tmp.Name())
+
+	tmp.WriteString(cpp)
+
+	parts := strings.Split(tmp.Name(), "/")
+	parts = parts[:len(parts)-1]
+
+	dir := strings.Join(parts, "/")
+
+	result := compile(dir, false)
+	if !result {
+		t.Error("Compile returned false, expected true.")
+	}
+	defer os.Remove(path.Join(dir, "a.out"))
+
+	_, err := os.Open(path.Join(dir, "a.out"))
+	if err != nil {
+		t.Errorf("Failed to open the compiled file: [err=%e]", err)
+	}
+}
+
+func TestCompileWallSuccess(t *testing.T) {
+	cpp := `#include <iostream>
+	int main() { std::cout << "Hello world!" << std::endl; }`
+
+	tmp, _ := os.CreateTemp("", "*.cpp")
+	// Removes the created temp file, this will always run
+	defer os.Remove(tmp.Name())
+
+	tmp.WriteString(cpp)
+
+	parts := strings.Split(tmp.Name(), "/")
+	parts = parts[:len(parts)-1]
+
+	dir := strings.Join(parts, "/")
+
+	result := compile(dir, true)
+	if !result {
+		t.Error("Compile returned false, expected true.")
+	}
+
+	defer os.Remove(path.Join(dir, "a.out"))
+
+	_, err := os.Open(path.Join(dir, "a.out"))
+	if err != nil {
+		t.Errorf("Failed to open the compiled file: [err=%e]", err)
+	}
+}
+func TestCompileWallFailure(t *testing.T) {
+	cpp := `int main() { int tst; tst += 1 }`
+
+	tmp, _ := os.CreateTemp("", "*.cpp")
+	// Removes the created temp file, this will always run
+	defer os.Remove(tmp.Name())
+
+	tmp.WriteString(cpp)
+
+	parts := strings.Split(tmp.Name(), "/")
+	parts = parts[:len(parts)-1]
+
+	dir := strings.Join(parts, "/")
+
+	result := compile(dir, true)
+	if result {
+		t.Error("Compile returned true, expected false.")
+	}
+
+	compiled, err := os.Open(path.Join(dir, "a.out"))
+	if err == nil {
+		t.Errorf("Found a compiled file when compilation should have failed: %s", compiled.Name())
+	}
+}
+
+func TestRunCompiled(t *testing.T) {
+	cpp := `#include <iostream>
+	int main() { std::cout << "Hello world!" << std::endl; }`
+
+	tmp, _ := os.CreateTemp("", "*.cpp")
+	// Removes the created temp file, this will always run
+	defer os.Remove(tmp.Name())
+
+	tmp.WriteString(cpp)
+
+	parts := strings.Split(tmp.Name(), "/")
+	parts = parts[:len(parts)-1]
+
+	dir := strings.Join(parts, "/")
+
+	result := compile(dir, true)
+	if !result {
+		t.Error("Compile returned false, expected true.")
+	}
+
+	defer os.Remove(path.Join(dir, "a.out"))
+
+	_, err := os.Open(path.Join(dir, "a.out"))
+	if err != nil {
+		t.Errorf("Failed to open the compiled file: [err=%e]", err)
+	}
+
+	expected := "Hello world!\n"
+	actual := runCompiled(dir, "")
+
+	if expected != actual {
+		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
 	}
 }
