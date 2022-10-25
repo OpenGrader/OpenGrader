@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/vulpine-io/io-test/v1/pkg/iotest"
 )
 
 func TestCmdOutputWrite(t *testing.T) {
@@ -258,9 +260,21 @@ func TestRunCompiled(t *testing.T) {
 	}
 
 	expected := "Hello world!\n"
-	actual := runCompiled(dir, "")
+	actual := runCompiled(dir, "", []string{})
 
 	if expected != actual {
 		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
+	}
+}
+
+func TestProcessInput(t *testing.T) {
+	stdio := new(iotest.WriteCloser)
+
+	input := []string{"hello", "world", "again"}
+	processInput(stdio, input)
+
+	expected := "hello\nworld\nagain\n"
+	if actual := string(stdio.WrittenBytes[:]); actual != expected {
+		t.Fatalf("Mismatched output. [expected=%#v] [actual=%#v]", expected, actual)
 	}
 }

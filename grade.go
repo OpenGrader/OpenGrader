@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -115,16 +116,28 @@ func compile(dir string, wall bool) bool {
 }
 
 // Run the compiled program in directory $dir with command-line args $args
-func runCompiled(dir, args string) string {
+func runCompiled(dir, args string, input []string) string {
 	var stdout CmdOutput
 
 	cmd := exec.Command("./a.out", strings.Fields(args)...)
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 
-	cmd.Run()
+	stdin, err := cmd.StdinPipe()
+	throw(err)
 
+	cmd.Start()
+
+	processInput(stdin, input)
+
+	cmd.Wait()
 	return string(stdout.savedOutput)
+}
+
+func processInput(stdin io.WriteCloser, input []string) {
+	for _, command := range input {
+		io.WriteString(stdin, command+"\n")
+	}
 }
 
 func main() {
@@ -132,9 +145,11 @@ func main() {
 	var runArgs string
 	var wall bool
 	var outfile string
+	var infile string
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
+	flag.StringVar(&infile, "in", "", "file to read interactive input from")
 	flag.StringVar(&outfile, "out", "report.csv", "file to write results to")
 
 	flag.Parse()
@@ -146,6 +161,13 @@ func main() {
 
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
+
+	var input []string
+	if infile != "" {
+		input = strings.Split(getFile(infile), "\n")
+	} else {
+		input = []string{}
+	}
 
 	expected := getFile(workDir + "/.spec/out.txt")
 	fmt.Println(expected)
@@ -162,7 +184,7 @@ func main() {
 		result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
 
 		if result.compileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), runArgs)
+			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
 			result.runCorrect, result.diff = compare(expected, stdout)
 		}
 	}
