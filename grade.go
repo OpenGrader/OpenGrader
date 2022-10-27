@@ -134,6 +134,25 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
+func runInterpreted(dir, args, pathVar string, input []string) string {
+	var stdout CmdOutput
+
+	command := strings.Join([]string{pathVar, dir}, " ")
+	cmd := exec.Command(command, strings.Fields(args)...)
+	cmd.Dir = dir
+	cmd.Stdout = &stdout
+
+	stdin, err := cmd.StdinPipe()
+	throw(err)
+
+	cmd.Start()
+
+	processInput(stdin, input)
+
+	cmd.Wait()
+	return string(stdout.savedOutput)
+}
+
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
 		io.WriteString(stdin, command+"\n")
@@ -147,7 +166,7 @@ func main() {
 	var wall bool
 	var outfile string
 	var infile string
-	flag.StringVar(&language,"lang","","Language to be tested")
+	flag.StringVar(&language, "lang", "", "Language to be tested")
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
@@ -177,17 +196,35 @@ func main() {
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
 
-	for _, dir := range dirs {
-		var result SubmissionResult
-		results.results[dir] = &result
-		results.order = append(results.order, dir)
+	if language == "python" {
+		fmt.Println(dirs)
+		for _, dir := range dirs {
+			var result SubmissionResult
+			results.results[dir] = &result
+			results.order = append(results.order, dir)
 
-		result.student = dir
-		result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+			result.student = dir
+			result.compileSuccess = true
 
-		if result.compileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
-			result.runCorrect, result.diff = compare(expected, stdout)
+			if result.compileSuccess {
+				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, "python", input)
+				fmt.Println(result.student, stdout)
+				result.runCorrect, result.diff = compare(expected, stdout)
+			}
+		}
+	} else {
+		for _, dir := range dirs {
+			var result SubmissionResult
+			results.results[dir] = &result
+			results.order = append(results.order, dir)
+
+			result.student = dir
+			result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+
+			if result.compileSuccess {
+				stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
+				result.runCorrect, result.diff = compare(expected, stdout)
+			}
 		}
 	}
 
