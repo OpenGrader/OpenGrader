@@ -134,6 +134,7 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
+// Takes pipe to standard input $stdin and an array of strings $input as input. It writes each string in the array to standard input $stdin.
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
 		io.WriteString(stdin, command+"\n")
@@ -141,6 +142,9 @@ func processInput(stdin io.WriteCloser, input []string) {
 }
 
 func main() {
+
+	// All of the flags for the executable. The functions follow the pattern of
+	// Pointer to variable where value of flag will be stored, name of flag, default value if none given, description of flag
 	var workDir string
 	var runArgs string
 	var wall bool
@@ -156,35 +160,35 @@ func main() {
 
 	fmt.Println("workdir: ", workDir)
 
-	cmd := exec.Command("ls")
-	cmd.Dir = workDir
+	cmd := exec.Command("ls") // Sets the command to be executed. Does not execute at this point.
+	cmd.Dir = workDir         // Assigns the value of the working directory passed from args as the working directory for command to be executed in.
 
-	out, _ := cmd.Output()
-	dirs := strings.Fields(string(out[:]))
+	out, _ := cmd.Output()                 // This runs and takes the output from "ls" called above and returns it as a singular byte slice
+	dirs := strings.Fields(string(out[:])) // Parses the entire out byte slice (think of it as a char array) and returns an array of strings with the name of each directory
 
 	var input []string
-	if infile != "" {
-		input = strings.Split(getFile(infile), "\n")
+	if infile != "" { // If an input file does exist
+		input = strings.Split(getFile(infile), "\n") // Split each of the newline separated inputs in the file into an array of strings
 	} else {
-		input = []string{}
+		input = []string{} // If input file is blank / does not exist, return empty array
 	}
 
-	expected := getFile(workDir + "/.spec/out.txt")
+	expected := getFile(workDir + "/.spec/out.txt") // Read file containing expected output
 	fmt.Println(expected)
 
-	var results SubmissionResults
-	results.results = make(map[string]*SubmissionResult)
+	var results SubmissionResults                        // Initialize a variable with the type of SubmissionResults struct (not SubmissionResult!)
+	results.results = make(map[string]*SubmissionResult) // Construct a map w keys of string type and values of SubmissionResult pointer
 
-	for _, dir := range dirs {
+	for _, dir := range dirs { // Loop through each directory
 		var result SubmissionResult
-		results.results[dir] = &result
-		results.order = append(results.order, dir)
+		results.results[dir] = &result             // Assign the value in the results map to a pointer to the result with the directory name as key
+		results.order = append(results.order, dir) // Add directory name to results to keep track of order
 
-		result.student = dir
-		result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+		result.student = dir                                               // Set the student attribute to the name of directory
+		result.compileSuccess = compile(filepath.Join(workDir, dir), wall) // Verify compilation
 
 		if result.compileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
+			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input) // If compiled successfully, execute and
 			result.runCorrect, result.diff = compare(expected, stdout)
 		}
 	}
