@@ -143,9 +143,11 @@ func processInput(stdin io.WriteCloser, input []string) {
 func main() {
 	var workDir string
 	var runArgs string
+	var language string
 	var wall bool
 	var outfile string
 	var infile string
+	flag.StringVar(&language,"lang","","Language to be tested")
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
