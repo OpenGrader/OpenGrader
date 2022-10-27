@@ -258,21 +258,26 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
-func runInterpreted(dir, args string, input []string) string {
+func runInterpreted(dir, args, pathVar string, input []string) string {
 	var stdout CmdOutput
 
-	cmd := exec.Command("python3", strings.Fields(args)...) //ex: python3 main.py arg1 arg2 ... argN
+	command := strings.Join([]string{pathVar, dir}, " ")
+	cmd := exec.Command(command, strings.Fields(args)...)
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
+
 	stdin, err := cmd.StdinPipe()
 	throw(err)
 
 	cmd.Start()
-	processInput(stdin, input)
-	cmd.Wait()
 
+	processInput(stdin, input)
+
+	cmd.Wait()
 	return string(stdout.savedOutput)
 }
+
+
 
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
@@ -365,7 +370,7 @@ func main() {
 			result.compileSuccess = true
 
 			if result.compileSuccess {
-				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, input)
+				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
 				fmt.Printf("Output for %s: %s", result.student, stdout)
 				result.runCorrect, result.feedback = compare(expected, stdout)
 			}
