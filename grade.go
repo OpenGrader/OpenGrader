@@ -146,12 +146,13 @@ func processInput(stdin io.WriteCloser, input []string) {
 }
 
 // Parse user input flags and return as strings.
-func parseFlags() (workDir, runArgs, outFile, inFile string, wall bool) {
+func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool) {
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
 	flag.StringVar(&inFile, "in", "", "file to read interactive input from")
 	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
+	flag.StringVar(&language, "lang", "", "Language to be tested")
 
 	flag.Parse()
 
@@ -182,7 +183,7 @@ func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wal
 }
 
 func main() {
-	workDir, runArgs, outFile, inFile, wall := parseFlags()
+	workDir, runArgs, outFile, inFile, _, wall := parseFlags()
 
 	fmt.Println("workdir: ", workDir)
 
