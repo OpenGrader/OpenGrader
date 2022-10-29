@@ -141,19 +141,27 @@ func runCompiled(dir, args string, input []string) string {
 func runInterpreted(dir, args, pathVar string, input []string) string {
 	var stdout CmdOutput
 
-	command := strings.Join([]string{pathVar, dir}, " ")
+	command := strings.Join([]string{pathVar,"main.py"}," ")
 	cmd := exec.Command(command, strings.Fields(args)...)
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
-
+	fmt.Println(cmd.Dir)
+	fmt.Println(cmd)
+	// temp := exec.Command("ls")
+	// temp.Dir = dir
+	// output,_ := temp.Output()
+	// sdirs := strings.Fields(string(output[:]))
+	// fmt.Println(sdirs)
 	stdin, err := cmd.StdinPipe()
 	throw(err)
 
 	cmd.Start()
 
+	
 	processInput(stdin, input)
 
 	cmd.Wait()
+	fmt.Println(stdout)
 	return string(stdout.savedOutput)
 }
 
@@ -221,7 +229,6 @@ func main() {
 	results.results = make(map[string]*SubmissionResult)
 
 	if language == "python" {
-		fmt.Println(dirs)
 		for _, dir := range dirs {
 			var result SubmissionResult
 			results.results[dir] = &result
@@ -231,8 +238,8 @@ func main() {
 			result.compileSuccess = true
 
 			if result.compileSuccess {
-				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, "python", input)
-				fmt.Println(result.student, stdout)
+				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, "python3", input)
+				//fmt.Println(result.student, stdout)
 				result.runCorrect, result.diff = compare(expected, stdout)
 			}
 		}
