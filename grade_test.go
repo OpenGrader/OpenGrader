@@ -337,3 +337,45 @@ func TestParseInFileWithoutInput(t *testing.T) {
 		t.Fatalf("len(actual) != 0, received %d (%#v)", len(actual), actual)
 	}
 }
+
+func TestGradeSubmission(t *testing.T) {
+	// create temp directory in temp directory
+	dir, err := os.MkdirTemp(os.TempDir(), "*")
+	dirList := strings.Split(dir, "/")
+	dir = dirList[len(dirList)-1]
+	workDir := os.TempDir()
+
+	// create c++ file
+	os.Create(dir + "/main.cpp")
+	p := path.Join(workDir, dir, "main.cpp")
+	os.WriteFile(p, []byte(`#include <iostream>
+	int main() { std::cout << "Hello world!" << std::endl; }`), 0666)
+
+	if err != nil {
+		t.Fatalf("Failed to make temp dir %#v", err)
+	}
+
+	// run and validate
+	runArgs := ""
+	expected := "Hello world!"
+	input := []string{}
+	wall := false
+
+	actual := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
+
+	if !actual.compileSuccess {
+		t.Fatalf("Compile error")
+	}
+
+	if actual.diff != " Hello world!" {
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", actual.diff, " Hello world!")
+	}
+
+	if !actual.runCorrect {
+		t.Errorf("actual.runCorrect is false, want true")
+	}
+
+	if actual.student != dir {
+		t.Errorf("actual.student mismatch, received %#v, want %#v", actual.student, dir)
+	}
+}

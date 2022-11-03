@@ -163,6 +163,19 @@ func parseInFile(inFile string) (input []string) {
 	return
 }
 
+// Grade a single student's submission.
+func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wall bool) (result SubmissionResult) {
+	result.student = dir
+
+	result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+	if result.compileSuccess {
+		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
+		result.runCorrect, result.diff = compare(expected, stdout)
+	}
+
+	return
+}
+
 func main() {
 	workDir, runArgs, outFile, inFile, wall := parseFlags()
 
@@ -183,17 +196,8 @@ func main() {
 	results.results = make(map[string]*SubmissionResult)
 
 	for _, dir := range dirs {
-		var result SubmissionResult
+		result := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
 		results.results[dir] = &result
-		results.order = append(results.order, dir)
-
-		result.student = dir
-		result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
-
-		if result.compileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
-			result.runCorrect, result.diff = compare(expected, stdout)
-		}
 	}
 
 	for _, id := range results.order {
