@@ -14,15 +14,19 @@ import (
 	"github.com/andreyvit/diff"
 )
 
+// Emulates stdout, stores bytes written.
 type CmdOutput struct {
 	savedOutput []byte
 }
 
+// Collection of submission results. Includes an order array to indicate the order of items in the
+// internal map.
 type SubmissionResults struct {
 	results map[string]*SubmissionResult
 	order   []string
 }
 
+// Record of a student's submission, with metadata about how it ran and compiled.
 type SubmissionResult struct {
 	student        string
 	compileSuccess bool
@@ -134,6 +138,7 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
+// Write provided input to stdin, line by line.
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
 		io.WriteString(stdin, command+"\n")
