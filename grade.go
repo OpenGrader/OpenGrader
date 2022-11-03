@@ -37,7 +37,7 @@ type SubmissionResult struct {
 // Allows capturing stdin by setting cmd.Stdin to an instance of CmdOutput
 func (out *CmdOutput) Write(p []byte) (n int, err error) {
 	out.savedOutput = append(out.savedOutput, p...)
-	return 0, nil
+	return len(p), nil
 }
 
 // Crash if an error is present
@@ -130,11 +130,19 @@ func runCompiled(dir, args string, input []string) string {
 	stdin, err := cmd.StdinPipe()
 	throw(err)
 
-	cmd.Start()
+	err = cmd.Start()
+
+	if err != nil {
+		panic(err)
+	}
 
 	processInput(stdin, input)
 
-	cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		panic(err)
+	}
+
 	return string(stdout.savedOutput)
 }
 
