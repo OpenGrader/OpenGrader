@@ -140,19 +140,31 @@ func processInput(stdin io.WriteCloser, input []string) {
 	}
 }
 
-func main() {
-	var workDir string
-	var runArgs string
-	var wall bool
-	var outfile string
-	var infile string
+// Parse user input flags and return as strings.
+func parseFlags() (workDir, runArgs, outFile, inFile string, wall bool) {
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
-	flag.StringVar(&infile, "in", "", "file to read interactive input from")
-	flag.StringVar(&outfile, "out", "report.csv", "file to write results to")
+	flag.StringVar(&inFile, "in", "", "file to read interactive input from")
+	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
 
 	flag.Parse()
+
+	return
+}
+
+// Generate a list of strings, each a line of user input.
+func parseInFile(inFile string) (input []string) {
+	if inFile != "" {
+		input = strings.Split(getFile(inFile), "\n")
+	} else {
+		input = []string{}
+	}
+	return
+}
+
+func main() {
+	workDir, runArgs, outFile, inFile, wall := parseFlags()
 
 	fmt.Println("workdir: ", workDir)
 
@@ -162,12 +174,7 @@ func main() {
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
 
-	var input []string
-	if infile != "" {
-		input = strings.Split(getFile(infile), "\n")
-	} else {
-		input = []string{}
-	}
+	input := parseInFile(inFile)
 
 	expected := getFile(workDir + "/.spec/out.txt")
 	fmt.Println(expected)
@@ -193,5 +200,5 @@ func main() {
 		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
 	}
 
-	createCsv(results, outfile)
+	createCsv(results, outFile)
 }
