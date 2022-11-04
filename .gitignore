@@ -1,3 +1,4 @@
 *.csv
 grade
 OpenGrader
+*.code-workspace
