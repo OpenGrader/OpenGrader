@@ -264,7 +264,7 @@ func runInterpreted(dir, args, pathVar string, input []string) string {
 
 	// alt method
 	// put check for python or python3, error catching n shit
-	command = "python" // only bc my shell works only with python and not python3
+	command = "python3" // only bc my shell works only with python and not python3
 	out, err := exec.Command(command, dir+"\\"+args).Output()
 
 	if err != nil {
