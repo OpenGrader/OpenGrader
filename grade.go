@@ -259,36 +259,24 @@ func runCompiled(dir, args string, input []string) string {
 }
 
 func runInterpreted(dir, args, pathVar string, input []string) string {
-	var stdout CmdOutput
 
 	command := strings.Join([]string{pathVar, ""}, " ")
-	//print("command = ", command, " end command -- ")
-	cmd := exec.Command(command, dir+"\\main.py")
-	cmd.Dir = dir
-	cmd.Stdout = &stdout
-	//print(" --- ")
-	//fmt.Println(cmd.Dir, "-- cmd dir")
-	//fmt.Println(cmd, " cmd")
-	// temp := exec.Command("ls")
-	// temp.Dir = dir
-	// output,_ := temp.Output()
-	// sdirs := strings.Fields(string(output[:]))
-	// fmt.Println(sdirs)
-	stdin, err := cmd.StdinPipe()
-	throw(err)
-	fmt.Println("input ", input)
-	cmd.Start()
-	processInput(stdin, input)
 
-	cmd.Wait()
-	fmt.Println(stdout)
-	return string(stdout.savedOutput)
+	// alt method
+	// put check for python or python3, error catching n shit
+	command = "python" // only bc my shell works only with python and not python3
+	out, err := exec.Command(command, dir+"\\"+args).Output()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(out[:])
 }
 
 
 
 func processInput(stdin io.WriteCloser, input []string) {
-	//fmt.Println("input = ", input)
 	for _, command := range input {
 		print("inside")
 		io.WriteString(stdin, command+"\n")
@@ -365,7 +353,7 @@ func main() {
 	input := parseInFile(inFile)
 
 	expected := getFile(workDir + "/.spec/out.txt")
-	fmt.Println(expected)
+	fmt.Println("Expected output: ", expected)
 
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
@@ -403,16 +391,17 @@ func main() {
 			fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
 		}
 
-		createCsv(results, outFile)
 	}
 
-	// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
-	// files, err := ioutil.ReadDir(workDir)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	//	for _, file := range files {
-	//		fmt.Println(file.Name(), file.IsDir())
-	//	}
+	createCsv(results, outFile)
 }
+
+// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
+// files, err := ioutil.ReadDir(workDir)
+// if err != nil {
+// 	log.Fatal(err)
+// }
+
+// for _, file := range files {
+// 	fmt.Println(file.Name(), file.IsDir())
+// }
