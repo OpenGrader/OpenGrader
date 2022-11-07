@@ -1,4 +1,4 @@
-// Run with ./grade -directory "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions" -lang "python" -in "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions\.spec\out.txt" -args main.py
+// Run with ./grade -directory "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions" -lang "python3" -in "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions\.spec\out.txt" -args main.py
 // .py file to be checked is passed in as an CL argument now
 package main
 
@@ -146,7 +146,7 @@ func runInterpreted(dir, args, pathVar string, input []string) string {
 
 	// alt method
 	// put check for python or python3, error catching n shit
-	command = "python" // only bc my shell works only with python and not python3
+	command = "python3" // only bc my shell works only with python and not python3
 	out, err := exec.Command(command, dir+"\\"+args).Output()
 
 	if err != nil {
