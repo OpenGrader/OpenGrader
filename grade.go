@@ -137,12 +137,14 @@ func runCompiled(dir, args string, input []string) string {
 func runInterpreted(dir, args, pathVar string, input []string) string {
 	var stdout CmdOutput
 
-	command := strings.Join([]string{pathVar,"main.py"}," ")
-	cmd := exec.Command(command, strings.Fields(args)...)
+	command := strings.Join([]string{pathVar, ""}, " ")
+	//print("command = ", command, " end command -- ")
+	cmd := exec.Command(command, dir+"\\main.py")
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
-	fmt.Println(cmd.Dir)
-	fmt.Println(cmd)
+	//print(" --- ")
+	//fmt.Println(cmd.Dir, "-- cmd dir")
+	//fmt.Println(cmd, " cmd")
 	// temp := exec.Command("ls")
 	// temp.Dir = dir
 	// output,_ := temp.Output()
@@ -150,10 +152,8 @@ func runInterpreted(dir, args, pathVar string, input []string) string {
 	// fmt.Println(sdirs)
 	stdin, err := cmd.StdinPipe()
 	throw(err)
-
+	fmt.Println("input ", input)
 	cmd.Start()
-
-	
 	processInput(stdin, input)
 
 	cmd.Wait()
@@ -162,7 +162,9 @@ func runInterpreted(dir, args, pathVar string, input []string) string {
 }
 
 func processInput(stdin io.WriteCloser, input []string) {
+	//fmt.Println("input = ", input)
 	for _, command := range input {
+		print("inside")
 		io.WriteString(stdin, command+"\n")
 	}
 }
@@ -215,7 +217,7 @@ func main() {
 
 			if result.compileSuccess {
 				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, "python3", input)
-				//fmt.Println(result.student, stdout)
+				fmt.Println(result.student, "student_result --", stdout, "here")
 				result.runCorrect, result.diff = compare(expected, stdout)
 			}
 		}
