@@ -72,6 +72,51 @@ func compare(expected, actual string) (bool, string) {
 	return evaluateDiff(d), d
 }
 
+// Function that evaluates student program output by computing it to expected output
+// Supports custom syntax in out.txt file, represented by the Syntax Dictionary in support.go
+func processOutput(expected, actual string) []int {
+
+	SyntaxDictionary := initSyntaxDictionary()
+
+	// Convert strings into array of strings separated by a newline
+	expectedLines := strings.Split(expected, "\n") // Trailing newlines in the expected output file result in empty strings in expectedLines slice...
+	actualLines := strings.Split(actual, "\n")
+
+	// Variable to track position in actualLines[]
+	position := 0
+
+	// Integer array containing evaluation of each line. Values either 1 or 0.
+	results := make([]int, len(expectedLines))
+
+	// Loop across each line of expected to compare to actual
+	for i, line := range expectedLines {
+		if i > 0 {
+			position++ // Increment each step after first pass
+		}
+		// if there are no more lines of actual output to compare it to, break
+		if i+1 > len(actualLines) {
+			break
+		}
+
+		// See if line starts with special character indicating use of custom syntax
+		if strings.HasPrefix(line, "!") {
+			// Pass to function that handles indicating syntax
+			if strings.Contains(line, "menu") {
+				results[i], position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
+			}
+		} else {
+			// Strict Evaluation
+			if line == actualLines[position] {
+				results[i] = 1
+			} else {
+				results[i] = 0
+			}
+		}
+	}
+
+	return results
+}
+
 // Convert boolean to string
 func btoa(b bool) string {
 	if b {
@@ -195,7 +240,7 @@ func main() {
 	input := parseInFile(inFile)
 
 	expected := getFile(workDir + "/.spec/out.txt")
-	fmt.Println(expected)
+	fmt.Println(expected + "\n")
 
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
@@ -203,6 +248,18 @@ func main() {
 	for _, dir := range dirs {
 		result := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
 		results.results[dir] = &result
+		results.order = append(results.order, dir)
+
+		result.student = dir
+		result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+
+		if result.compileSuccess {
+			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
+			result.runCorrect, result.diff = compare(expected, stdout)
+			// I am here for testing
+			newRes := processOutput(expected, stdout)
+			fmt.Printf("New Results (PASS=1, FAIL=0): %v\n\n", newRes)
+		}
 	}
 
 	for _, id := range results.order {
