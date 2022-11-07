@@ -1,3 +1,5 @@
+// Run with ./grade -directory "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions" -lang "python" -in "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions\.spec\out.txt" -args main.py
+// .py file to be checked is passed in as an CL argument now
 package main
 
 import (
@@ -135,38 +137,43 @@ func runCompiled(dir, args string, input []string) string {
 }
 
 func runInterpreted(dir, args, pathVar string, input []string) string {
-	var stdout CmdOutput
 
 	command := strings.Join([]string{pathVar, ""}, " ")
-	//print("command = ", command, " end command -- ")
-	cmd := exec.Command(command, dir+"\\main.py")
-	cmd.Dir = dir
-	cmd.Stdout = &stdout
-	//print(" --- ")
-	//fmt.Println(cmd.Dir, "-- cmd dir")
-	//fmt.Println(cmd, " cmd")
-	// temp := exec.Command("ls")
-	// temp.Dir = dir
-	// output,_ := temp.Output()
-	// sdirs := strings.Fields(string(output[:]))
-	// fmt.Println(sdirs)
-	stdin, err := cmd.StdinPipe()
-	throw(err)
-	fmt.Println("input ", input)
-	cmd.Start()
-	processInput(stdin, input)
 
-	cmd.Wait()
-	fmt.Println(stdout)
-	return string(stdout.savedOutput)
+	// alt method
+	// put check for python or python3, error catching n shit
+	command = "python" // only bc my shell works only with python and not python3
+	out, err := exec.Command(command, dir+"\\"+args).Output()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(out[:])
 }
 
+// figure out how to get rid of this / if it breaks something
 func processInput(stdin io.WriteCloser, input []string) {
-	//fmt.Println("input = ", input)
-	for _, command := range input {
-		print("inside")
-		io.WriteString(stdin, command+"\n")
+
+}
+
+func OSReadDir(root string) []string {
+	var files []string
+	f, err := os.Open(root)
+	if err != nil {
+		return files
 	}
+	fileInfo, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		return files
+	}
+
+	for _, file := range fileInfo {
+		files = append(files, file.Name())
+	}
+	print("no error\n")
+	return files
 }
 
 func main() {
@@ -185,8 +192,6 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Println("workdir: ", workDir)
-
 	cmd := exec.Command("ls")
 	cmd.Dir = workDir
 
@@ -201,7 +206,7 @@ func main() {
 	}
 
 	expected := getFile(workDir + "/.spec/out.txt")
-	fmt.Println(expected)
+	fmt.Println("Expected output: ", expected)
 
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
@@ -217,7 +222,7 @@ func main() {
 
 			if result.compileSuccess {
 				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, "python3", input)
-				fmt.Println(result.student, "student_result --", stdout, "here")
+				fmt.Printf("Output for %s: %s", result.student, stdout)
 				result.runCorrect, result.diff = compare(expected, stdout)
 			}
 		}
@@ -243,3 +248,13 @@ func main() {
 
 	createCsv(results, outfile)
 }
+
+// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
+// files, err := ioutil.ReadDir(workDir)
+// if err != nil {
+// 	log.Fatal(err)
+// }
+
+// for _, file := range files {
+// 	fmt.Println(file.Name(), file.IsDir())
+// }
