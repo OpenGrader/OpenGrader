@@ -136,14 +136,12 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
-func runInterpreted(dir, args, pathVar string, input []string) string {
+func runInterpreted(dir, args, language string, input []string) string {
 
-	command := strings.Join([]string{pathVar, ""}, " ")
+	//command := strings.Join([]string{pathVar, ""}, " ")
 
 	// alt method
-	// put check for python or python3, error catching n shit
-	command = "python3" // only bc my shell works only with python and not python3
-	out, err := exec.Command(command, dir+"\\"+args).Output()
+	out, err := exec.Command(language, filepath.Join(dir, args)).Output()
 
 	if err != nil {
 		log.Fatal(err)
@@ -152,9 +150,10 @@ func runInterpreted(dir, args, pathVar string, input []string) string {
 	return string(out[:])
 }
 
-// figure out how to get rid of this / if it breaks something
 func processInput(stdin io.WriteCloser, input []string) {
-
+	for _, command := range input {
+		io.WriteString(stdin, command+"\n")
+	}
 }
 
 func OSReadDir(root string) []string {
@@ -211,7 +210,7 @@ func main() {
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
 
-	if language == "python" {
+	if language == "python3" || language == "python" {
 		for _, dir := range dirs {
 			var result SubmissionResult
 			results.results[dir] = &result
@@ -221,7 +220,7 @@ func main() {
 			result.compileSuccess = true
 
 			if result.compileSuccess {
-				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, "python3", input)
+				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
 				fmt.Printf("Output for %s: %s", result.student, stdout)
 				result.runCorrect, result.diff = compare(expected, stdout)
 			}
