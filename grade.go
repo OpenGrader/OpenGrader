@@ -258,14 +258,12 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
-func runInterpreted(dir, args, pathVar string, input []string) string {
+func runInterpreted(dir, args, language string, input []string) string {
 
-	command := strings.Join([]string{pathVar, ""}, " ")
+	//command := strings.Join([]string{pathVar, ""}, " ")
 
 	// alt method
-	// put check for python or python3, error catching n shit
-	command = "python3" // only bc my shell works only with python and not python3
-	out, err := exec.Command(command, dir+"\\"+args).Output()
+	out, err := exec.Command(language, filepath.Join(dir, args)).Output()
 
 	if err != nil {
 		log.Fatal(err)
@@ -274,11 +272,9 @@ func runInterpreted(dir, args, pathVar string, input []string) string {
 	return string(out[:])
 }
 
-
-
+// Write provided input to stdin, line by line.
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
-		print("inside")
 		io.WriteString(stdin, command+"\n")
 	}
 }
