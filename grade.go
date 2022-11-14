@@ -140,9 +140,16 @@ func runInterpreted(dir, args, language string, input []string) string {
 
 	//command := strings.Join([]string{pathVar, ""}, " ")
 
+	// get CL arguments
+	print(args, " = args\n")
+	//Args := strings.Split(args, " ")
+	//print(Args[1], " = new args")
+
+	print("\nfpath = ", filepath.Join(dir, args), "\n")
+
 	// alt method
 	out, err := exec.Command(language, filepath.Join(dir, args)).Output()
-
+	//print(string(out[:]), " ")
 	if err != nil {
 		log.Fatal(err)
 	}
