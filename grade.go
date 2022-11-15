@@ -72,21 +72,50 @@ func compare(expected, actual string) (bool, string) {
 	return evaluateDiff(d), d
 }
 
+func handleDirectives(expected, actual []string) (fixedExpected, fixedActual []string) {
+	// If there is no bang-sh
+	if !strings.Contains(expected[0], "!#") {
+		return expected, actual
+	} else {
+		fixedExpected = expected[1:]
+		fixedActual = actual
+		if strings.Contains(expected[0], "c") {
+			for i := range fixedExpected {
+				// set all lowercase
+				fixedExpected[i] = strings.ToLower(fixedExpected[i])
+			}
+			for i := range fixedActual {
+				fixedActual[i] = strings.ToLower(fixedActual[i])
+			}
+		}
+
+		if strings.Contains(expected[0], "w") {
+			for i := range fixedExpected {
+				// set all lowercase
+				fixedExpected[i] = strings.ReplaceAll(fixedExpected[i], " ", "")
+			}
+			for i := range fixedActual {
+				fixedActual[i] = strings.ReplaceAll(fixedActual[i], " ", "")
+			}
+		}
+	}
+	return fixedExpected, fixedActual
+}
+
 // Function that evaluates student program output by computing it to expected output
 // Supports custom syntax in out.txt file, represented by the Syntax Dictionary in support.go
-func processOutput(expected, actual string) []int {
+func processOutput(expected, actual string) []string {
 
 	SyntaxDictionary := initSyntaxDictionary()
 
-	// Convert strings into array of strings separated by a newline
-	expectedLines := strings.Split(expected, "\n") // Trailing newlines in the expected output file result in empty strings in expectedLines slice...
-	actualLines := strings.Split(actual, "\n")
+	// Convert strings into array of strings separated by a newline and manipulate text to handle any directives
+	expectedLines, actualLines := handleDirectives(strings.Split(expected, "\n"), strings.Split(actual, "\n"))
 
 	// Variable to track position in actualLines[]
 	position := 0
 
 	// Integer array containing evaluation of each line. Values either 1 or 0.
-	results := make([]int, len(expectedLines))
+	results := make([]string, len(expectedLines))
 
 	// Loop across each line of expected to compare to actual
 	for i, line := range expectedLines {
@@ -103,14 +132,12 @@ func processOutput(expected, actual string) []int {
 			// Pass to function that handles indicating syntax
 			if strings.Contains(line, "menu") {
 				results[i], position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
+			} else if strings.Contains(line, "ignore") {
+				results[i], position, actualLines = SyntaxDictionary["ignore"](line, actualLines, i)
 			}
 		} else {
 			// Strict Evaluation
-			if line == actualLines[position] {
-				results[i] = 1
-			} else {
-				results[i] = 0
-			}
+			_, results[i] = compare(line, actualLines[position])
 		}
 	}
 
@@ -258,7 +285,10 @@ func main() {
 			result.runCorrect, result.diff = compare(expected, stdout)
 			// I am here for testing
 			newRes := processOutput(expected, stdout)
-			fmt.Printf("New Results (PASS=1, FAIL=0): %v\n\n", newRes)
+			for i, res := range newRes {
+				fmt.Printf("Test %d: %s\n", i+1, res)
+			}
+			fmt.Println("")
 		}
 	}
 
