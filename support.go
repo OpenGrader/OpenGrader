@@ -152,3 +152,17 @@ func hasPrompt(Stdout []string, pos int) (result bool, modifiedStdout []string) 
 	}
 	return result, modifiedStdout
 }
+
+// Function that initializes the syntax dictionary and calls the menu function w given parameters.
+// Solely for unit tests.
+func menuWrapper(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
+	SyntaxDictionary := initSyntaxDictionary()
+	return SyntaxDictionary["menu"](menuCall, StdOutput, startPos)
+}
+
+// Function that initializes the syntax dictionary and calls the ignore function w given parameters
+// Solely for unit tests.
+func ignoreWrapper(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
+	SyntaxDictionary := initSyntaxDictionary()
+	return SyntaxDictionary["menu"](menuCall, StdOutput, startPos)
+}
