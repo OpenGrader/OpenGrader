@@ -16,8 +16,9 @@ import (
 func initSyntaxDictionary() map[string]func(string, []string, int) (string, int, []string) {
 	SyntaxDictionary := make(map[string]func(string, []string, int) (string, int, []string))
 
-	SyntaxDictionary["menu"] = func(expectedOutputLine string, StdOutputLines []string, startingPosInStdOuput int) (result string, newPositionInStdOutput int, modifiedStdout []string) {
-		// Menu keyword comes in the form of !menu(x), where x is a digit representing the number of options the menu should display.
+	SyntaxDictionary["menu"] = func(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
+		// Menu keyword comes in the form of !menu(x),
+		// where x is a digit representing the number of options the menu should display.
 		// Menus should resemble the following form (using x = 3):
 		/*
 			Title of the menu \n
@@ -34,40 +35,41 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 			string leading with 3
 			string ending with :
 		*/
-
-		// Set modifiedStdout equal to StdOutputLines
-		modifiedStdout = StdOutputLines
+		// Declare return variables
+		var result string
+		var newPos int
+		modifiedStdout := StdOutput
 
 		// Initially give result a passing value of 1, will be changed to 0 if it fails any of the following checks.
 		result = "good menu...for now"
 
 		// First, extract the value of x CONVERT
-		x_value := extractXValue(expectedOutputLine)
+		x_value := extractXValue(menuCall)
 
 		// Get current position in stdout
-		curr := startingPosInStdOuput
+		curr := startPos
 
 		// Now, evaluate the menu shape.
 		// Check for title
-		if StdOutputLines[curr] == "" {
+		if (StdOutput[curr] == "") {
 			fmt.Println("Check for title failed")
 			result = "No title" // Check failed
 		}
 
 		curr++
 
-		curr, result = hasOptions(StdOutputLines, x_value, curr)
+		curr, result = hasOptions(StdOutput, x_value, curr)
 
 		// Check to see if curr exceeds bounds again
-		if curr > len(StdOutputLines)-1 {
+		if curr > len(StdOutput)-1 {
 			result = "Position exceeds bounds"
-			curr-- // Move curr back if it exceeds the bounds of StdOutputLines
-			newPositionInStdOutput = curr
-			return
+			curr-- // Move curr back if it exceeds the bounds of StdOutput
+			newPos = curr
+			return result, newPos, modifiedStdout
 		}
 
 		var promptPassed bool
-		promptPassed, modifiedStdout = hasPrompt(StdOutputLines, curr)
+		promptPassed, modifiedStdout = hasPrompt(StdOutput, curr)
 
 		if !promptPassed {
 			result = " No prompt"
@@ -75,17 +77,17 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 		}
 
 		// Finally, update new position with current
-		newPositionInStdOutput = curr
+		newPos = curr
 
-		return result, newPositionInStdOutput, modifiedStdout
+		return result, newPos, modifiedStdout
 	}
 
-	SyntaxDictionary["ignore"] = func(expectedOutputLine string, StdOutputLines []string, startingPosInStdOuput int) (result string, newPositionInStdOutput int, modifiedStdout []string) {
-		result = ""
-		newPositionInStdOutput = startingPosInStdOuput + 1 // Core functionality of ignore.... just skip da line
-		modifiedStdout = StdOutputLines
+	SyntaxDictionary["ignore"] = func(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
+		var result string = ""
+		var newPos int = startPos + 1 // Core functionality of ignore.... just skip da line
+		modifiedStdout := StdOutput
 
-		return result, newPositionInStdOutput, modifiedStdout
+		return result, newPos, modifiedStdout
 	}
 	return SyntaxDictionary
 }
@@ -100,7 +102,7 @@ func hasOptions(sl []string, x_value, currPos int) (pos int, pass string) {
 	pass = " Good menu"
 	for i := 1; i <= x_value; i++ {
 		if currPos > len(sl)-1 {
-			currPos-- // Move curr back if it exceeds the bounds of StdOutputLines
+			currPos-- // Move curr back if it exceeds the bounds of StdOutput
 			pass = "No more output remaining"
 			return currPos, pass
 		}
