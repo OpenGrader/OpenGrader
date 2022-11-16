@@ -103,7 +103,7 @@ func hasOptions(sl []string, x_value, currPos int) (pos int, pass string) {
 	for i := 1; i <= x_value; i++ {
 		if currPos > len(sl)-1 {
 			currPos-- // Move curr back if it exceeds the bounds of StdOutput
-			pass = "No more output remaining"
+			pass = " No more output remaining"
 			return currPos, pass
 		}
 
