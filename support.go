@@ -46,6 +46,7 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 		// First, extract the value of x CONVERT
 		x_value := extractXValue(menuCall)
 
+		if (x_value < 1 || x_value > 9) { return "Invalid menu parameter", startPos, StdOutput }
 		// Get current position in stdout
 		curr := startPos
 
@@ -98,17 +99,21 @@ func extractXValue(s string) int {
 	return x_value
 }
 
-func hasOptions(sl []string, x_value, currPos int) (pos int, pass string) {
+func hasOptions(output []string, x_value, currPos int) (pos int, pass string) {
 	pass = " Good menu"
+	if len(output) == 1 {
+		pass = " Not a valid menu! Contains only 1 string."
+		return 0, pass
+	}
 	for i := 1; i <= x_value; i++ {
-		if currPos > len(sl)-1 {
+		if currPos > len(output)-1 {
 			currPos-- // Move curr back if it exceeds the bounds of StdOutput
 			pass = " No more output remaining"
 			return currPos, pass
 		}
 
 		var earlyPromptFound bool
-		earlyPromptFound, _ = hasPrompt(sl, currPos)
+		earlyPromptFound, _ = hasPrompt(output, currPos)
 
 		if earlyPromptFound {
 			// fmt.Println("Early prompt")
