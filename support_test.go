@@ -119,3 +119,117 @@ func TestHasPrompt (t *testing.T) {
 		})
 	}
 }
+
+func TestMenuWrapper(t *testing.T) {
+	var Tests = []struct {
+		// (menuCall string, StdOutput []string, startPos int) (string, int, []string)
+		menuCall 			string
+		Stdout				[]string
+		startPos			int
+		wantFeedback	string
+		wantEndPos		int
+		wantModStdout	[]string
+	}{
+		{ // Test 1
+			"!menu(3)",
+			[]string{
+				"Title",
+				"Op1",
+				"Op2",
+				"Prompt:",
+				"more output",
+			},
+			0,
+			" Not enough menu options",
+			3,
+			[]string{
+				"Title",
+				"Op1",
+				"Op2",
+				"Prompt:",
+				"more output",
+			},
+		},
+		{ // Test 2
+			"!menu(0)",
+			[]string{
+				"string",
+				"string",
+				"string",
+			},
+			1,
+			"Invalid menu parameter",
+			1,
+			[]string{
+				"string",
+				"string",
+				"string",
+			},
+		},
+		{ // Test 3
+			"!menu(2)",
+			[]string{
+				"",
+				"O1",
+				"O2",
+				"P:",
+				"more",
+			},
+			0,
+			"No title Good menu",
+			3,
+			[]string{
+				"",
+				"O1",
+				"O2",
+				"P:",
+				"more",
+			},
+		},
+		{ // Test 4
+			"!menu(2)",
+			[]string{
+				"Output before the menu",
+				"Menu title",
+				"Op 1",
+				"Op 2",
+				"Prompt?Output got printed here!",
+				"more extraneous output",
+			},
+			1,
+			" Good menu",
+			4,
+			[]string{
+				"Output before the menu",
+				"Menu title",
+				"Op 1",
+				"Op 2",
+				"Prompt?",
+				"Output got printed here!",
+				"more extraneous output",
+			},
+		},
+	}
+
+	for i, tt := range Tests {
+		testname := fmt.Sprintf("menuWrapperTest%d", i)
+
+		t.Run(testname, func(t *testing.T) {
+			feedback, endPos, modifiedStdout := menuWrapper(tt.menuCall, tt.Stdout, tt.startPos)
+
+			if (feedback != tt.wantFeedback) {
+				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)
+			}
+
+			if (endPos != tt.wantEndPos) {
+				t.Errorf("Wanted endPos of %v got %v", tt.wantEndPos, endPos)
+			}
+
+			for i, v := range modifiedStdout {
+				if v != tt.wantModStdout[i] {
+					t.Errorf("Wanted %v got %v", tt.wantModStdout, modifiedStdout)
+				}
+			}
+		})
+	}
+}

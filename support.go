@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -36,12 +35,9 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 			string ending with :
 		*/
 		// Declare return variables
-		var result string
+		var feedback string = ""
 		var newPos int
 		modifiedStdout := StdOutput
-
-		// Initially give result a passing value of 1, will be changed to 0 if it fails any of the following checks.
-		result = "good menu...for now"
 
 		// First, extract the value of x CONVERT
 		x_value := extractXValue(menuCall)
@@ -53,42 +49,47 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 		// Now, evaluate the menu shape.
 		// Check for title
 		if (StdOutput[curr] == "") {
-			fmt.Println("Check for title failed")
-			result = "No title" // Check failed
+			feedback = "No title" // Check failed
 		}
 
 		curr++
 
-		curr, result = hasOptions(StdOutput, x_value, curr)
+		if feedback != "" {
+			var additionalFeedback string
+			curr, additionalFeedback = hasOptions(StdOutput, x_value, curr)
+			feedback += additionalFeedback
+		} else {
+			curr, feedback = hasOptions(StdOutput, x_value, curr)
+		}
 
 		// Check to see if curr exceeds bounds again
 		if curr > len(StdOutput)-1 {
-			result = "Position exceeds bounds"
+			feedback += "Position exceeds bounds"
 			curr-- // Move curr back if it exceeds the bounds of StdOutput
 			newPos = curr
-			return result, newPos, modifiedStdout
+			return feedback, newPos, modifiedStdout
 		}
 
 		var promptPassed bool
 		promptPassed, modifiedStdout = hasPrompt(StdOutput, curr)
 
 		if !promptPassed {
-			result = " No prompt"
+			feedback += " No prompt"
 			curr--
 		}
 
 		// Finally, update new position with current
 		newPos = curr
 
-		return result, newPos, modifiedStdout
+		return feedback, newPos, modifiedStdout
 	}
 
 	SyntaxDictionary["ignore"] = func(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
-		var result string = ""
+		var feedback string = "Output ignored"
 		var newPos int = startPos + 1 // Core functionality of ignore.... just skip da line
 		modifiedStdout := StdOutput
 
-		return result, newPos, modifiedStdout
+		return feedback, newPos, modifiedStdout
 	}
 	return SyntaxDictionary
 }
