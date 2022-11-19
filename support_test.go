@@ -233,3 +233,71 @@ func TestMenuWrapper(t *testing.T) {
 		})
 	}
 }
+
+func TestIgnoreWrapper(t *testing.T) {
+	var Tests = []struct {
+		// (menuCall string, StdOutput []string, startPos int) (string, int, []string)
+		ignoreCall 			string
+		Stdout				[]string
+		startPos			int
+		wantFeedback	string
+		wantEndPos		int
+		wantModStdout	[]string
+	}{
+		{ // Test 1
+			"!ignore",
+			[]string{
+				"Hello",
+				"!ignore",
+				"1",
+				"2",
+			},
+			1,
+			"Output ignored",
+			1,
+			[]string{
+				"Hello",
+				"!ignore",
+				"1",
+				"2",
+			},
+		},
+		{ // Test 2
+			"!ignore",
+			[]string{
+				"!ignore",
+				"Hello",
+			},
+			0,
+			"Output ignored",
+			0,
+			[]string{
+				"!ignore",
+				"Hello",
+			},
+		},
+	}
+
+	for i, tt := range Tests {
+		testname := fmt.Sprintf("ignoreWrapperTest%d", i)
+
+		t.Run(testname, func(t *testing.T) {
+			feedback, endPos, modifiedStdout := ignoreWrapper(tt.ignoreCall, tt.Stdout, tt.startPos)
+
+			if (feedback != tt.wantFeedback) {
+				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)
+			}
+
+			if (endPos != tt.wantEndPos) {
+				t.Errorf("Wanted endPos of %v got %v", tt.wantEndPos, endPos)
+			}
+
+			for i, v := range modifiedStdout {
+				if v != tt.wantModStdout[i] {
+					t.Errorf("Wanted %v got %v", tt.wantModStdout, modifiedStdout)
+				}
+			}
+		})
+	}
+
+}

@@ -42,13 +42,15 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 		// First, extract the value of x CONVERT
 		x_value := extractXValue(menuCall)
 
-		if (x_value < 1 || x_value > 9) { return "Invalid menu parameter", startPos, StdOutput }
+		if x_value < 1 || x_value > 9 {
+			return "Invalid menu parameter", startPos, StdOutput
+		}
 		// Get current position in stdout
 		curr := startPos
 
 		// Now, evaluate the menu shape.
 		// Check for title
-		if (StdOutput[curr] == "") {
+		if StdOutput[curr] == "" {
 			feedback = "No title" // Check failed
 		}
 
@@ -86,10 +88,9 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 
 	SyntaxDictionary["ignore"] = func(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
 		var feedback string = "Output ignored"
-		var newPos int = startPos + 1 // Core functionality of ignore.... just skip da line
-		modifiedStdout := StdOutput
+		// Core functionality of ignore.... just skip da line
 
-		return feedback, newPos, modifiedStdout
+		return feedback, startPos, StdOutput
 	}
 	return SyntaxDictionary
 }
@@ -168,7 +169,7 @@ func menuWrapper(menuCall string, StdOutput []string, startPos int) (string, int
 
 // Function that initializes the syntax dictionary and calls the ignore function w given parameters
 // Solely for unit tests.
-func ignoreWrapper(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
+func ignoreWrapper(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
 	SyntaxDictionary := initSyntaxDictionary()
-	return SyntaxDictionary["menu"](menuCall, StdOutput, startPos)
+	return SyntaxDictionary["ignore"](ignoreCall, StdOutput, startPos)
 }
