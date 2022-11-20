@@ -212,25 +212,20 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
-func runInterpreted(dir, args, language string, input []string) string {
+func runInterpreted(dir, args string, input []string) string {
+	var stdout CmdOutput
 
-	//command := strings.Join([]string{pathVar, ""}, " ")
+	cmd := exec.Command("python3", strings.Fields(args)...)	//ex: python3 main.py arg1 arg2 ... argN
+	cmd.Dir = dir
+	cmd.Stdout = &stdout
+	stdin, err := cmd.StdinPipe()
+	throw(err)
+	
+	cmd.Start()
+	processInput(stdin, input)
+	cmd.Wait()
 
-	// get CL arguments
-	print(args, " = args\n")
-	//Args := strings.Split(args, " ")
-	//print(Args[1], " = new args")
-
-	print("\nfpath = ", filepath.Join(dir, args), "\n")
-
-	// alt method
-	out, err := exec.Command(language, filepath.Join(dir, args)).Output()
-	//print(string(out[:]), " ")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return string(out[:])
+	return string(stdout.savedOutput)
 }
 
 func processInput(stdin io.WriteCloser, input []string) {
@@ -324,7 +319,7 @@ func main() {
 			result.compileSuccess = true
 
 			if result.compileSuccess {
-				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
+				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, input)
 				fmt.Printf("Output for %s: %s", result.student, stdout)
 				result.runCorrect, result.diff = compare(expected, stdout)
 			}
