@@ -1,3 +1,5 @@
+// Run with ./grade -directory "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions" -lang "python3" -in "C:\Users\theja\OneDrive\Documents\Capstone\OpenGrader\submissions\.spec\out.txt" -args main.py
+// .py file to be checked is passed in as an CL argument now
 package main
 
 import (
@@ -210,24 +212,59 @@ func runCompiled(dir, args string, input []string) string {
 	return string(stdout.savedOutput)
 }
 
-// Write provided input to stdin, line by line.
+func runInterpreted(dir, args string, input []string) string {
+	var stdout CmdOutput
+
+	cmd := exec.Command("python3", strings.Fields(args)...)	//ex: python3 main.py arg1 arg2 ... argN
+	cmd.Dir = dir
+	cmd.Stdout = &stdout
+	stdin, err := cmd.StdinPipe()
+	throw(err)
+	
+	cmd.Start()
+	processInput(stdin, input)
+	cmd.Wait()
+
+	return string(stdout.savedOutput)
+}
+
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
 		io.WriteString(stdin, command+"\n")
 	}
 }
 
+func OSReadDir(root string) []string {
+	var files []string
+	f, err := os.Open(root)
+	if err != nil {
+		return files
+	}
+	fileInfo, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		return files
+	}
+
+	for _, file := range fileInfo {
+		files = append(files, file.Name())
+	}
+	print("no error\n")
+	return files
+}
+
 // Parse user input flags and return as strings.
-func parseFlags() (workDir, runArgs, outFile, inFile string, wall bool) {
-	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
-	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
-	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
-	flag.StringVar(&inFile, "in", "", "file to read interactive input from")
-	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
+func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool) {
+    flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
+    flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
+    flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
+    flag.StringVar(&inFile, "in", "", "file to read interactive input from")
+    flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
+    flag.StringVar(&language, "lang", "", "Language to be tested")
 
-	flag.Parse()
+    flag.Parse()
 
-	return
+    return
 }
 
 // Generate a list of strings, each a line of user input.
@@ -254,7 +291,7 @@ func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wal
 }
 
 func main() {
-	workDir, runArgs, outFile, inFile, wall := parseFlags()
+	workDir, runArgs, outFile, inFile, language, wall := parseFlags()
 
 	fmt.Println("workdir: ", workDir)
 
@@ -267,29 +304,44 @@ func main() {
 	input := parseInFile(inFile)
 
 	expected := getFile(workDir + "/.spec/out.txt")
-	fmt.Println(expected + "\n")
+	fmt.Println(expected)
 
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
 
-	for _, dir := range dirs {
-		result := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
-		results.results[dir] = &result
-		results.order = append(results.order, dir)
+	if language == "python3" || language == "python" {
+		for _, dir := range dirs {
+			var result SubmissionResult
+			results.results[dir] = &result
+			results.order = append(results.order, dir)
 
-		result.student = dir
-		result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+			result.student = dir
+			result.compileSuccess = true
 
-		if result.compileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
-			result.runCorrect, result.diff = compare(expected, stdout)
-			// I am here for testing
-			newRes := processOutput(expected, stdout)
-			for i, res := range newRes {
-				fmt.Printf("Test %d: %s\n", i+1, res)
+			if result.compileSuccess {
+				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, input)
+				fmt.Printf("Output for %s: %s", result.student, stdout)
+				result.runCorrect, result.diff = compare(expected, stdout)
 			}
-			fmt.Println("")
 		}
+	} else {
+		for _, dir := range dirs {
+			var result SubmissionResult
+			results.results[dir] = &result
+			results.order = append(results.order, dir)
+
+			result.student = dir
+			result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+			if result.compileSuccess {
+				stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
+				result.runCorrect, result.diff = compare(expected, stdout)
+				// I am here for testing
+				newRes := processOutput(expected, stdout)
+				for i, res := range newRes {
+					fmt.Printf("Test %d: %s\n", i+1, res)
+				}
+				fmt.Println("")
+			}
 	}
 
 	for _, id := range results.order {
@@ -297,4 +349,15 @@ func main() {
 	}
 
 	createCsv(results, outFile)
+}
+
+// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
+// files, err := ioutil.ReadDir(workDir)
+// if err != nil {
+// 	log.Fatal(err)
+// }
+
+// for _, file := range files {
+// 	fmt.Println(file.Name(), file.IsDir())
+// }
 }

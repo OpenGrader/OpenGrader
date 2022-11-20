@@ -288,7 +288,7 @@ func TestParseFlags(t *testing.T) {
 
 	os.Args = []string{"test", "--out", expectedOutFile, "--in", expectedInFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs}
 
-	workDir, runArgs, outFile, inFile, wall := parseFlags()
+	workDir, runArgs, outFile, inFile, _, wall := parseFlags()
 
 	if workDir != expectedWorkDir {
 		t.Errorf("Mismatched workDir [expected=%#v] [actual=%#v]", expectedWorkDir, workDir)
