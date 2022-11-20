@@ -16,15 +16,19 @@ import (
 	"github.com/andreyvit/diff"
 )
 
+// Emulates stdout, stores bytes written.
 type CmdOutput struct {
 	savedOutput []byte
 }
 
+// Collection of submission results. Includes an order array to indicate the order of items in the
+// internal map.
 type SubmissionResults struct {
 	results map[string]*SubmissionResult
 	order   []string
 }
 
+// Record of a student's submission, with metadata about how it ran and compiled.
 type SubmissionResult struct {
 	student        string
 	compileSuccess bool
@@ -68,6 +72,78 @@ func compare(expected, actual string) (bool, string) {
 	d := diff.LineDiff(strings.TrimSpace(expected), strings.TrimSpace(actual))
 
 	return evaluateDiff(d), d
+}
+
+func handleDirectives(expected, actual []string) (fixedExpected, fixedActual []string) {
+	// If there is no bang-sh
+	if !strings.Contains(expected[0], "!#") {
+		return expected, actual
+	} else {
+		fixedExpected = expected[1:]
+		fixedActual = actual
+		if strings.Contains(expected[0], "c") {
+			for i := range fixedExpected {
+				// set all lowercase
+				fixedExpected[i] = strings.ToLower(fixedExpected[i])
+			}
+			for i := range fixedActual {
+				fixedActual[i] = strings.ToLower(fixedActual[i])
+			}
+		}
+
+		if strings.Contains(expected[0], "w") {
+			for i := range fixedExpected {
+				// set all lowercase
+				fixedExpected[i] = strings.ReplaceAll(fixedExpected[i], " ", "")
+			}
+			for i := range fixedActual {
+				fixedActual[i] = strings.ReplaceAll(fixedActual[i], " ", "")
+			}
+		}
+	}
+	return fixedExpected, fixedActual
+}
+
+// Function that evaluates student program output by computing it to expected output
+// Supports custom syntax in out.txt file, represented by the Syntax Dictionary in support.go
+func processOutput(expected, actual string) []string {
+
+	SyntaxDictionary := initSyntaxDictionary()
+
+	// Convert strings into array of strings separated by a newline and manipulate text to handle any directives
+	expectedLines, actualLines := handleDirectives(strings.Split(expected, "\n"), strings.Split(actual, "\n"))
+
+	// Variable to track position in actualLines[]
+	position := 0
+
+	// Integer array containing evaluation of each line. Values either 1 or 0.
+	results := make([]string, len(expectedLines))
+
+	// Loop across each line of expected to compare to actual
+	for i, line := range expectedLines {
+		if i > 0 {
+			position++ // Increment each step after first pass
+		}
+		// if there are no more lines of actual output to compare it to, break
+		if i+1 > len(actualLines) {
+			break
+		}
+
+		// See if line starts with special character indicating use of custom syntax
+		if strings.HasPrefix(line, "!") {
+			// Pass to function that handles indicating syntax
+			if strings.Contains(line, "menu") {
+				results[i], position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
+			} else if strings.Contains(line, "ignore") {
+				results[i], position, actualLines = SyntaxDictionary["ignore"](line, actualLines, i)
+			}
+		} else {
+			// Strict Evaluation
+			_, results[i] = compare(line, actualLines[position])
+		}
+	}
+
+	return results
 }
 
 // Convert boolean to string
@@ -182,21 +258,47 @@ func OSReadDir(root string) []string {
 	return files
 }
 
-func main() {
-	var workDir string
-	var runArgs string
-	var language string
-	var wall bool
-	var outfile string
-	var infile string
-	flag.StringVar(&language, "lang", "", "Language to be tested")
-	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
-	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
-	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
-	flag.StringVar(&infile, "in", "", "file to read interactive input from")
-	flag.StringVar(&outfile, "out", "report.csv", "file to write results to")
+// Parse user input flags and return as strings.
+func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool) {
+    flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
+    flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
+    flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
+    flag.StringVar(&inFile, "in", "", "file to read interactive input from")
+    flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
+    flag.StringVar(&language, "lang", "", "Language to be tested")
 
-	flag.Parse()
+    flag.Parse()
+
+    return
+}
+
+// Generate a list of strings, each a line of user input.
+func parseInFile(inFile string) (input []string) {
+	if inFile != "" {
+		input = strings.Split(getFile(inFile), "\n")
+	} else {
+		input = []string{}
+	}
+	return
+}
+
+// Grade a single student's submission.
+func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wall bool) (result SubmissionResult) {
+	result.student = dir
+
+	result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
+	if result.compileSuccess {
+		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
+		result.runCorrect, result.diff = compare(expected, stdout)
+	}
+
+	return
+}
+
+func main() {
+	workDir, runArgs, outFile, inFile, language, wall := parseFlags()
+
+	fmt.Println("workdir: ", workDir)
 
 	cmd := exec.Command("ls")
 	cmd.Dir = workDir
@@ -204,15 +306,10 @@ func main() {
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
 
-	var input []string
-	if infile != "" {
-		input = strings.Split(getFile(infile), "\n")
-	} else {
-		input = []string{}
-	}
+	input := parseInFile(inFile)
 
 	expected := getFile(workDir + "/.spec/out.txt")
-	fmt.Println("Expected output: ", expected)
+	fmt.Println(expected)
 
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
@@ -240,19 +337,23 @@ func main() {
 
 			result.student = dir
 			result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
-
 			if result.compileSuccess {
 				stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
 				result.runCorrect, result.diff = compare(expected, stdout)
+				// I am here for testing
+				newRes := processOutput(expected, stdout)
+				for i, res := range newRes {
+					fmt.Printf("Test %d: %s\n", i+1, res)
+				}
+				fmt.Println("")
 			}
-		}
 	}
 
 	for _, id := range results.order {
 		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
 	}
 
-	createCsv(results, outfile)
+	createCsv(results, outFile)
 }
 
 // This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
@@ -264,3 +365,4 @@ func main() {
 // for _, file := range files {
 // 	fmt.Println(file.Name(), file.IsDir())
 // }
+}

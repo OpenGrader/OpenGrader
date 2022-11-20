@@ -4,3 +4,4 @@ OpenGrader
 *.exe
 code
 submissions
+*.code-workspace

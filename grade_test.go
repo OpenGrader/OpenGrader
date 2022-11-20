@@ -278,3 +278,104 @@ func TestProcessInput(t *testing.T) {
 		t.Fatalf("Mismatched output. [expected=%#v] [actual=%#v]", expected, actual)
 	}
 }
+
+func TestParseFlags(t *testing.T) {
+	expectedWorkDir := "my/directory"
+	expectedRunArgs := "--test --args -f"
+	expectedOutFile := "my-outfile"
+	expectedInFile := "my-infile"
+	expectedWall := false
+
+	os.Args = []string{"test", "--out", expectedOutFile, "--in", expectedInFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs}
+
+	workDir, runArgs, outFile, inFile, wall := parseFlags()
+
+	if workDir != expectedWorkDir {
+		t.Errorf("Mismatched workDir [expected=%#v] [actual=%#v]", expectedWorkDir, workDir)
+	}
+
+	if runArgs != expectedRunArgs {
+		t.Errorf("Mismatched runArgs [expected=%#v] [actual=%#v]", expectedRunArgs, runArgs)
+	}
+
+	if outFile != expectedOutFile {
+		t.Errorf("Mismatched outFile [expected=%#v] [actual=%#v]", expectedOutFile, outFile)
+	}
+
+	if inFile != expectedInFile {
+		t.Errorf("Mismatched inFile [expected=%#v] [actual=%#v]", expectedInFile, inFile)
+	}
+
+	if wall != expectedWall {
+		t.Errorf("Mismatched wall [expected=%#v] [actual=%#v]", expectedWall, wall)
+	}
+}
+
+func TestParseInFileWithInput(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "*.cpp")
+
+	tmp.Write([]byte("test\nmultiline \ninput\nfor\nprogram\n"))
+
+	actual := parseInFile(tmp.Name())
+	expected := []string{"test", "multiline ", "input", "for", "program", ""}
+
+	if len(expected) != len(actual) {
+		t.Fatalf("len(expected) != len(actual). Received %d, want %d", len(actual), len(expected))
+	}
+
+	for i, received := range actual {
+		if want := expected[i]; want != received {
+			t.Errorf("Received %#v, want %#v", received, want)
+		}
+	}
+}
+
+func TestParseInFileWithoutInput(t *testing.T) {
+	actual := parseInFile("")
+
+	if len(actual) != 0 {
+		t.Fatalf("len(actual) != 0, received %d (%#v)", len(actual), actual)
+	}
+}
+
+func TestGradeSubmission(t *testing.T) {
+	// create temp directory in temp directory
+	dir, err := os.MkdirTemp(os.TempDir(), "*")
+	dirList := strings.Split(dir, "/")
+	dir = dirList[len(dirList)-1]
+	workDir := os.TempDir()
+
+	// create c++ file
+	os.Create(dir + "/main.cpp")
+	p := path.Join(workDir, dir, "main.cpp")
+	os.WriteFile(p, []byte(`#include <iostream>
+	int main() { std::cout << "Hello world!" << std::endl; }`), 0666)
+
+	if err != nil {
+		t.Fatalf("Failed to make temp dir %#v", err)
+	}
+
+	// run and validate
+	runArgs := ""
+	expected := "Hello world!"
+	input := []string{}
+	wall := false
+
+	actual := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
+
+	if !actual.compileSuccess {
+		t.Fatalf("Compile error")
+	}
+
+	if actual.diff != " Hello world!" {
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", actual.diff, " Hello world!")
+	}
+
+	if !actual.runCorrect {
+		t.Errorf("actual.runCorrect is false, want true")
+	}
+
+	if actual.student != dir {
+		t.Errorf("actual.student mismatch, received %#v, want %#v", actual.student, dir)
+	}
+}
