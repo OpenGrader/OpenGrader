@@ -11,16 +11,16 @@ func TestExtractXValueTableDriven(t *testing.T) {
 		want         int
 	}{
 		{"!menu(1)", 1},
-		{"!menu(2)", 2},
+		{"!menu(23091)", 23091},
 		{"!menu(3)", 3},
-		{"!menu(4)", 4},
-		{"!menu(5)", 5},
+		{"!menu(14)", 14},
+		{"!menu(52)", 52},
 	}
 
 	for _, tt := range Tests {
 		testname := fmt.Sprintf("%s,%d", tt.syntaxString, tt.want)
 		t.Run(testname, func(t *testing.T) {
-			ans := extractXValue(tt.syntaxString)
+			ans, _ := extractXValue(tt.syntaxString)
 			if ans != tt.want {
 				t.Errorf("got %d want %d", ans, tt.want)
 			}
@@ -64,48 +64,48 @@ func TestHasOptions(t *testing.T) {
 	}
 }
 
-func TestHasPrompt (t *testing.T) {
+func TestHasPrompt(t *testing.T) {
 	var Tests = []struct {
-		stdout 							[]string
-		startPos						int
-		wantResult					bool
-		wantModifiedStdout	[]string
+		stdout             []string
+		startPos           int
+		wantResult         bool
+		wantModifiedStdout []string
 	}{
 		{
-			[]string{"A string","Another string","Menu Title","1","2","3","Prompt:","Output after"},
+			[]string{"A string", "Another string", "Menu Title", "1", "2", "3", "Prompt:", "Output after"},
 			6,
 			true,
-			[]string{"A string","Another string","Menu Title","1","2","3","Prompt:","Output after"},
+			[]string{"A string", "Another string", "Menu Title", "1", "2", "3", "Prompt:", "Output after"},
 		},
 		{
-			[]string{"1","2","3"},
+			[]string{"1", "2", "3"},
 			2,
 			false,
-			[]string{"1","2","3"},
+			[]string{"1", "2", "3"},
 		},
 		{
-			[]string{"Prompt? ","Following","3"},
+			[]string{"Prompt? ", "Following", "3"},
 			0,
 			true,
-			[]string{"Prompt? ","Following","3"},
+			[]string{"Prompt? ", "Following", "3"},
 		},
 		{
-			[]string{"Prompt:Output that was appended!","Following",},
+			[]string{"Prompt:Output that was appended!", "Following"},
 			0,
 			true,
-			[]string{"Prompt:","Output that was appended!","Following",},
+			[]string{"Prompt:", "Output that was appended!", "Following"},
 		},
 	}
 
 	for i, tt := range Tests {
 		testname := fmt.Sprintf("TestHasPrompt#%d", i+1)
-		t.Run(testname, func (t *testing.T)  {
+		t.Run(testname, func(t *testing.T) {
 			result, modifiedStdout := hasPrompt(tt.stdout, tt.startPos)
 
 			if result != tt.wantResult {
 				t.Errorf("Wanted result of %v got %v", tt.wantResult, result)
 			}
-			
+
 			if len(modifiedStdout) != len(tt.wantModifiedStdout) {
 				t.Errorf("Wanted %v got %v", tt.wantModifiedStdout, modifiedStdout)
 			}
@@ -123,12 +123,12 @@ func TestHasPrompt (t *testing.T) {
 func TestMenuWrapper(t *testing.T) {
 	var Tests = []struct {
 		// (menuCall string, StdOutput []string, startPos int) (string, int, []string)
-		menuCall 			string
-		Stdout				[]string
-		startPos			int
-		wantFeedback	string
-		wantEndPos		int
-		wantModStdout	[]string
+		menuCall      string
+		Stdout        []string
+		startPos      int
+		wantFeedback  string
+		wantEndPos    int
+		wantModStdout []string
 	}{
 		{ // Test 1
 			"!menu(3)",
@@ -217,11 +217,11 @@ func TestMenuWrapper(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			feedback, endPos, modifiedStdout := menuWrapper(tt.menuCall, tt.Stdout, tt.startPos)
 
-			if (feedback != tt.wantFeedback) {
+			if feedback != tt.wantFeedback {
 				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)
 			}
 
-			if (endPos != tt.wantEndPos) {
+			if endPos != tt.wantEndPos {
 				t.Errorf("Wanted endPos of %v got %v", tt.wantEndPos, endPos)
 			}
 
@@ -237,12 +237,12 @@ func TestMenuWrapper(t *testing.T) {
 func TestIgnoreWrapper(t *testing.T) {
 	var Tests = []struct {
 		// (menuCall string, StdOutput []string, startPos int) (string, int, []string)
-		ignoreCall 			string
-		Stdout				[]string
-		startPos			int
-		wantFeedback	string
-		wantEndPos		int
-		wantModStdout	[]string
+		ignoreCall    string
+		Stdout        []string
+		startPos      int
+		wantFeedback  string
+		wantEndPos    int
+		wantModStdout []string
 	}{
 		{ // Test 1
 			"!ignore",
@@ -284,11 +284,11 @@ func TestIgnoreWrapper(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			feedback, endPos, modifiedStdout := ignoreWrapper(tt.ignoreCall, tt.Stdout, tt.startPos)
 
-			if (feedback != tt.wantFeedback) {
+			if feedback != tt.wantFeedback {
 				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)
 			}
 
-			if (endPos != tt.wantEndPos) {
+			if endPos != tt.wantEndPos {
 				t.Errorf("Wanted endPos of %v got %v", tt.wantEndPos, endPos)
 			}
 
@@ -300,4 +300,156 @@ func TestIgnoreWrapper(t *testing.T) {
 		})
 	}
 
+}
+
+func TestInsertIntoStringSlice(t *testing.T) {
+	var Tests = []struct {
+		// (slice []string, val string, i int) ([]string)
+		slice		[]string
+		val 		string
+		i				int
+		want		[]string
+	}{ 
+		{
+			[]string{
+				"test",
+				"test",
+				"test",
+			},
+			"taste",
+			1,
+			[]string{
+				"test",
+				"taste",
+				"test",
+				"test",
+			},
+		},
+		{
+			[]string{
+				"0",
+				"1",
+				"2",
+				"3",
+				"5",
+			},
+			"4",
+			4,
+			[]string{
+				"0",
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+			},
+		},
+		{
+			[]string{
+				"Fizz",
+				"Ah",
+			},
+			"Buzz",
+			1,
+			[]string{
+				"Fizz",
+				"Buzz",
+				"Ah",
+			},
+		},
+	}
+
+	for i, tt := range Tests {
+		testname := fmt.Sprintf("insertIntoStringTest%d", i)
+
+		t.Run(testname, func(t *testing.T) {
+			actual := insertIntoStringSlice(tt.slice, tt.val, tt.i)
+			for i, v := range actual {
+				if v != tt.want[i] {
+					t.Errorf("Wanted %v got %v", tt.want, actual)
+				}
+			}
+		})
+	}
+}
+
+func TestSplitStringInSlice(t *testing.T) {
+	var Tests = []struct {
+		// (slice []string, pos int, char string) ([]string )
+		slice		[]string
+		pos			int
+		char		string
+		want		[]string
+	}{
+		{
+			[]string{
+				"test",
+				"test",
+				"test",
+			},
+			2,
+			"e",
+			[]string{
+				"test",
+				"test",
+				"te",
+				"st",
+			},
+		},
+		{
+			[]string{
+				"Output",
+				"Menu",
+				"Op1",
+				"Op2",
+				"Prompt:AHHH BAD OUTPUT",
+				"More output",
+			},
+			4,
+			":",
+			[]string{
+				"Output",
+				"Menu",
+				"Op1",
+				"Op2",
+				"Prompt:",
+				"AHHH BAD OUTPUT",
+				"More output",
+			},
+		},
+		{
+			[]string{
+				"Output",
+				"Menu",
+				"Op1",
+				"Op2",
+				"Op3",
+				"Prompt?AHHH BAD OUTPUT",
+			},
+			5,
+			"?",
+			[]string{
+				"Output",
+				"Menu",
+				"Op1",
+				"Op2",
+				"Op3",
+				"Prompt?",
+				"AHHH BAD OUTPUT",
+			},
+		},
+	}
+
+	for i, tt := range Tests {
+		testname := fmt.Sprintf("splitStringInSliceTest%d", i)
+
+		t.Run(testname, func(t *testing.T) {
+			actual := splitStringInSlice(tt.slice, tt.pos, tt.char)
+			for i, v := range actual {
+				if v != tt.want[i] {
+					t.Errorf("Wanted %v got %v", tt.want, actual)
+				}
+			}
+		})
+	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -40,9 +41,9 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 		modifiedStdout := StdOutput
 
 		// First, extract the value of x CONVERT
-		x_value := extractXValue(menuCall)
+		x_value, err := extractXValue(menuCall)
 
-		if x_value < 1 || x_value > 9 {
+		if err != nil || x_value < 1 {
 			return "Invalid menu parameter", startPos, StdOutput
 		}
 		// Get current position in stdout
@@ -95,10 +96,11 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 	return SyntaxDictionary
 }
 
-func extractXValue(s string) int {
-	x_index := strings.Index(s, "(") + 1
-	x_value := int(s[x_index]) - 48 // Ascii subtract
-	return x_value
+func extractXValue(s string) (int, error) {
+	startIndex := strings.Index(s, "(") + 1
+	endIndex := strings.Index(s, ")")
+	x, err := strconv.Atoi(s[startIndex:endIndex])
+	return x, err
 }
 
 func hasOptions(output []string, x_value, currPos int) (pos int, pass string) {
@@ -128,36 +130,48 @@ func hasOptions(output []string, x_value, currPos int) (pos int, pass string) {
 	return currPos, pass
 }
 
-func hasPrompt(Stdout []string, pos int) (result bool, modifiedStdout []string) {
-	modifiedStdout = Stdout
-	result = true
-	if strings.HasSuffix(strings.TrimSpace(Stdout[pos]), ":") || strings.HasSuffix(strings.TrimSpace(Stdout[pos]), "?") {
-		return result, modifiedStdout
+func findTrailingPrompt(s string) (bool) {
+	if strings.HasSuffix(strings.TrimSpace(s), ":") || strings.HasSuffix(strings.TrimSpace(s), "?") {
+		return true
+	} else {
+		return false
 	}
+}
 
-	if !strings.HasSuffix(strings.TrimSpace(Stdout[pos]), ":") && !strings.HasSuffix(strings.TrimSpace(Stdout[pos]), "?") {
+// Split a given string within a slice in two around a given character. First half of split remains in original slice position,
+// while the second half is inserted after
+func splitStringInSlice(slice []string, pos int, char string)  ([]string) {
+	tempSlice := strings.SplitAfter(slice[pos], char) 
+	slice[pos] = tempSlice[0]
+	return insertIntoStringSlice(slice, strings.TrimSpace(tempSlice[1]), pos + 1)
+}
+
+// Insert a string into a string slice at position i
+// following me implementation from https://github.com/golang/go/wiki/SliceTricks#Insert 
+func insertIntoStringSlice(slice []string, val string, i int) ([]string) {
+	slice = append(slice, "") // append empty value at end of string to make room for one more value
+	copy(slice[i+1:], slice[i:])
+	slice[i] = val
+	return slice
+}
+
+func hasPrompt(Stdout []string, pos int) ( bool, []string) {
+	if findTrailingPrompt(Stdout[pos]) {
+		return true, Stdout
+	} else {
 		// Search for that : or ? in there!
 		// If there is no newline after the : stdout will begin printing right after the colon instead of on the next line
 		if strings.Contains(strings.TrimSpace(Stdout[pos]), ":") {
-			// Split line into two strings, the prompt and the output that was appended to it
-			tempSlice := strings.SplitAfter(Stdout[pos], ":") // temp slice to extract values out of...
-			modifiedStdout[pos] = tempSlice[0]
-			misplacedOutput := strings.TrimSpace(tempSlice[1])
-			modifiedStdout = append(modifiedStdout[:pos+2], modifiedStdout[pos+1:]...)
-			modifiedStdout[pos+1] = misplacedOutput
+			// Split the value that contains the prompt and r
+			modifiedStdout := splitStringInSlice(Stdout, pos, ":")
+			return true, modifiedStdout
 		} else if strings.Contains(strings.TrimSpace(Stdout[pos]), "?") {
-			// Split line into two strings, the prompt and the output that was appended to it
-			tempSlice := strings.SplitAfter(Stdout[pos], "?") // temp slice to extract values out of...
-			modifiedStdout[pos] = tempSlice[0]
-			misplacedOutput := strings.TrimSpace(tempSlice[1])
-			modifiedStdout = append(modifiedStdout[:pos+2], modifiedStdout[pos+1:]...)
-			modifiedStdout[pos+1] = misplacedOutput
+			modifiedStdout := splitStringInSlice(Stdout, pos, "?")
+			return true, modifiedStdout
 		} else {
-			result = false
+			return false, Stdout
 		}
-
 	}
-	return result, modifiedStdout
 }
 
 // Function that initializes the syntax dictionary and calls the menu function w given parameters.

@@ -215,12 +215,12 @@ func runCompiled(dir, args string, input []string) string {
 func runInterpreted(dir, args string, input []string) string {
 	var stdout CmdOutput
 
-	cmd := exec.Command("python3", strings.Fields(args)...)	//ex: python3 main.py arg1 arg2 ... argN
+	cmd := exec.Command("python3", strings.Fields(args)...) //ex: python3 main.py arg1 arg2 ... argN
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	stdin, err := cmd.StdinPipe()
 	throw(err)
-	
+
 	cmd.Start()
 	processInput(stdin, input)
 	cmd.Wait()
@@ -255,16 +255,16 @@ func OSReadDir(root string) []string {
 
 // Parse user input flags and return as strings.
 func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool) {
-    flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
-    flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
-    flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
-    flag.StringVar(&inFile, "in", "", "file to read interactive input from")
-    flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
-    flag.StringVar(&language, "lang", "", "Language to be tested")
+	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
+	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
+	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
+	flag.StringVar(&inFile, "in", "", "file to read interactive input from")
+	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
+	flag.StringVar(&language, "lang", "", "Language to be tested")
 
-    flag.Parse()
+	flag.Parse()
 
-    return
+	return
 }
 
 // Generate a list of strings, each a line of user input.
@@ -342,22 +342,22 @@ func main() {
 				}
 				fmt.Println("")
 			}
+		}
+
+		for _, id := range results.order {
+			fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
+		}
+
+		createCsv(results, outFile)
 	}
 
-	for _, id := range results.order {
-		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
-	}
+	// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
+	// files, err := ioutil.ReadDir(workDir)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	createCsv(results, outFile)
-}
-
-// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
-// files, err := ioutil.ReadDir(workDir)
-// if err != nil {
-// 	log.Fatal(err)
-// }
-
-// for _, file := range files {
-// 	fmt.Println(file.Name(), file.IsDir())
-// }
+	//	for _, file := range files {
+	//		fmt.Println(file.Name(), file.IsDir())
+	//	}
 }
