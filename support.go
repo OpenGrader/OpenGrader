@@ -59,10 +59,10 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 
 		if feedback != "" {
 			var additionalFeedback string
-			curr, additionalFeedback = hasOptions(StdOutput, x_value, curr)
+			curr, additionalFeedback = hasMenuOptions(StdOutput, x_value, curr)
 			feedback += additionalFeedback
 		} else {
-			curr, feedback = hasOptions(StdOutput, x_value, curr)
+			curr, feedback = hasMenuOptions(StdOutput, x_value, curr)
 		}
 
 		// Check to see if curr exceeds bounds again
@@ -97,13 +97,13 @@ func initSyntaxDictionary() map[string]func(string, []string, int) (string, int,
 }
 
 func extractXValue(s string) (int, error) {
-	startIndex := strings.Index(s, "(") + 1
-	endIndex := strings.Index(s, ")")
-	x, err := strconv.Atoi(s[startIndex:endIndex])
+	startIndex := strings.Index(s, "(") + 1        // index value of the first digit
+	endIndex := strings.Index(s, ")")              // Index value of the right parantheses
+	x, err := strconv.Atoi(s[startIndex:endIndex]) // substring from 1st digit to last digit
 	return x, err
 }
 
-func hasOptions(output []string, x_value, currPos int) (pos int, pass string) {
+func hasMenuOptions(output []string, x_value, currPos int) (pos int, pass string) {
 	pass = " Good menu"
 	if len(output) == 1 {
 		pass = " Not a valid menu! Contains only 1 string."
@@ -130,7 +130,7 @@ func hasOptions(output []string, x_value, currPos int) (pos int, pass string) {
 	return currPos, pass
 }
 
-func findTrailingPrompt(s string) (bool) {
+func findTrailingPrompt(s string) bool {
 	if strings.HasSuffix(strings.TrimSpace(s), ":") || strings.HasSuffix(strings.TrimSpace(s), "?") {
 		return true
 	} else {
@@ -140,22 +140,22 @@ func findTrailingPrompt(s string) (bool) {
 
 // Split a given string within a slice in two around a given character. First half of split remains in original slice position,
 // while the second half is inserted after
-func splitStringInSlice(slice []string, pos int, char string)  ([]string) {
-	tempSlice := strings.SplitAfter(slice[pos], char) 
+func splitStringInSlice(slice []string, pos int, char string) []string {
+	tempSlice := strings.SplitAfter(slice[pos], char)
 	slice[pos] = tempSlice[0]
-	return insertIntoStringSlice(slice, strings.TrimSpace(tempSlice[1]), pos + 1)
+	return insertIntoStringSlice(slice, strings.TrimSpace(tempSlice[1]), pos+1)
 }
 
 // Insert a string into a string slice at position i
-// following me implementation from https://github.com/golang/go/wiki/SliceTricks#Insert 
-func insertIntoStringSlice(slice []string, val string, i int) ([]string) {
+// following me implementation from https://github.com/golang/go/wiki/SliceTricks#Insert
+func insertIntoStringSlice(slice []string, val string, i int) []string {
 	slice = append(slice, "") // append empty value at end of string to make room for one more value
 	copy(slice[i+1:], slice[i:])
 	slice[i] = val
 	return slice
 }
 
-func hasPrompt(Stdout []string, pos int) ( bool, []string) {
+func hasPrompt(Stdout []string, pos int) (bool, []string) {
 	if findTrailingPrompt(Stdout[pos]) {
 		return true, Stdout
 	} else {

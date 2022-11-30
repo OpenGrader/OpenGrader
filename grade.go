@@ -36,6 +36,15 @@ type SubmissionResult struct {
 	diff           string
 }
 
+// Enum to contain the different types of directives that could be used in spec file
+type directive int
+
+const (
+	MENU directive = iota
+	IGNORE
+	NONE
+)
+
 // Allows capturing stdin by setting cmd.Stdin to an instance of CmdOutput
 func (out *CmdOutput) Write(p []byte) (n int, err error) {
 	out.savedOutput = append(out.savedOutput, p...)
@@ -79,7 +88,7 @@ func handleDirectives(expected, actual []string) (fixedExpected, fixedActual []s
 	if !strings.Contains(expected[0], "!#") {
 		return expected, actual
 	} else {
-		fixedExpected = expected[1:]
+		fixedExpected = expected[1:] // Copy everything beyond the first value in expected (the line with the directives)
 		fixedActual = actual
 		if strings.Contains(expected[0], "c") {
 			for i := range fixedExpected {
@@ -102,6 +111,19 @@ func handleDirectives(expected, actual []string) (fixedExpected, fixedActual []s
 		}
 	}
 	return fixedExpected, fixedActual
+}
+
+// Helper method to make process output simpler and more readable.
+// Checks to see if a custom syntax is used and returns the proper directive
+func getDirectives(line string) directive {
+	if strings.HasPrefix(line, "!") {
+		if strings.Contains(strings.ToLower(line), "menu") {
+			return MENU
+		} else if strings.Contains(strings.ToLower(line), "ignore") {
+			return IGNORE
+		}
+	}
+	return NONE
 }
 
 // Function that evaluates student program output by computing it to expected output
@@ -129,20 +151,15 @@ func processOutput(expected, actual string) []string {
 			break
 		}
 
-		// See if line starts with special character indicating use of custom syntax
-		if strings.HasPrefix(line, "!") {
-			// Pass to function that handles indicating syntax
-			if strings.Contains(line, "menu") {
-				results[i], position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
-			} else if strings.Contains(line, "ignore") {
-				results[i], position, actualLines = SyntaxDictionary["ignore"](line, actualLines, i)
-			}
-		} else {
-			// Strict Evaluation
+		switch getDirectives(line) {
+		case MENU:
+			results[i], position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
+		case IGNORE:
+			results[i], position, actualLines = SyntaxDictionary["ignore"](line, actualLines, i)
+		case NONE:
 			_, results[i] = compare(line, actualLines[position])
 		}
 	}
-
 	return results
 }
 

@@ -28,7 +28,7 @@ func TestExtractXValueTableDriven(t *testing.T) {
 	}
 }
 
-func TestHasOptions(t *testing.T) {
+func TestHasMenuOptions(t *testing.T) {
 	var TestInput = []struct {
 		stdout  []string
 		pos     int
@@ -53,7 +53,7 @@ func TestHasOptions(t *testing.T) {
 	for i, ti := range TestInput {
 		testname := fmt.Sprintf("hasOptionsTest%d", (i + 1))
 		t.Run(testname, func(t *testing.T) {
-			actualPos, actualResult := hasOptions(ti.stdout, ti.pos, ti.x_value)
+			actualPos, actualResult := hasMenuOptions(ti.stdout, ti.pos, ti.x_value)
 			if actualPos != WantedResults[i].position {
 				t.Errorf("Incorrect position. Wanted position %d and got %d", WantedResults[i].position, actualPos)
 			}
@@ -305,11 +305,11 @@ func TestIgnoreWrapper(t *testing.T) {
 func TestInsertIntoStringSlice(t *testing.T) {
 	var Tests = []struct {
 		// (slice []string, val string, i int) ([]string)
-		slice		[]string
-		val 		string
-		i				int
-		want		[]string
-	}{ 
+		slice []string
+		val   string
+		i     int
+		want  []string
+	}{
 		{
 			[]string{
 				"test",
@@ -376,10 +376,10 @@ func TestInsertIntoStringSlice(t *testing.T) {
 func TestSplitStringInSlice(t *testing.T) {
 	var Tests = []struct {
 		// (slice []string, pos int, char string) ([]string )
-		slice		[]string
-		pos			int
-		char		string
-		want		[]string
+		slice []string
+		pos   int
+		char  string
+		want  []string
 	}{
 		{
 			[]string{
