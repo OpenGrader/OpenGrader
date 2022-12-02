@@ -28,11 +28,9 @@ func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int
 	*/
 	// This shape can be simplified to following:
 	/*
-		string
-		string leading with 2
-		string leading with 1
-		string leading with 3
-		string ending with :
+		title string
+		x option strings between
+		prompt string
 	*/
 	// Declare return variables
 	var feedback string = ""
