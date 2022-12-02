@@ -130,8 +130,6 @@ func getDirectives(line string) directive {
 // Supports custom syntax in out.txt file, represented by the Syntax Dictionary in support.go
 func processOutput(expected, actual string) []string {
 
-	SyntaxDictionary := initSyntaxDictionary()
-
 	// Convert strings into array of strings separated by a newline and manipulate text to handle any directives
 	expectedLines, actualLines := handleDirectives(strings.Split(expected, "\n"), strings.Split(actual, "\n"))
 

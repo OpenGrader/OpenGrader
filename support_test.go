@@ -120,7 +120,7 @@ func TestHasPrompt(t *testing.T) {
 	}
 }
 
-func TestMenuWrapper(t *testing.T) {
+func TestMenuHandler(t *testing.T) {
 	var Tests = []struct {
 		// (menuCall string, StdOutput []string, startPos int) (string, int, []string)
 		menuCall      string
@@ -212,10 +212,10 @@ func TestMenuWrapper(t *testing.T) {
 	}
 
 	for i, tt := range Tests {
-		testname := fmt.Sprintf("menuWrapperTest%d", i)
+		testname := fmt.Sprintf("menuHandlerTest%d", i)
 
 		t.Run(testname, func(t *testing.T) {
-			feedback, endPos, modifiedStdout := menuWrapper(tt.menuCall, tt.Stdout, tt.startPos)
+			feedback, endPos, modifiedStdout := menuHandler(tt.menuCall, tt.Stdout, tt.startPos)
 
 			if feedback != tt.wantFeedback {
 				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)
@@ -234,7 +234,7 @@ func TestMenuWrapper(t *testing.T) {
 	}
 }
 
-func TestIgnoreWrapper(t *testing.T) {
+func TestIgnoreHandler(t *testing.T) {
 	var Tests = []struct {
 		// (menuCall string, StdOutput []string, startPos int) (string, int, []string)
 		ignoreCall    string
@@ -282,7 +282,7 @@ func TestIgnoreWrapper(t *testing.T) {
 		testname := fmt.Sprintf("ignoreWrapperTest%d", i)
 
 		t.Run(testname, func(t *testing.T) {
-			feedback, endPos, modifiedStdout := ignoreWrapper(tt.ignoreCall, tt.Stdout, tt.startPos)
+			feedback, endPos, modifiedStdout := ignoreHandler(tt.ignoreCall, tt.Stdout, tt.startPos)
 
 			if feedback != tt.wantFeedback {
 				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)

@@ -5,95 +5,93 @@ import (
 	"strings"
 )
 
-// Returns the Syntax Dictionary that maps keywords to functions that handle the processing of their output.
-// The functions will each accept a string, a string slice, and an integer
-// The string will be the line from out.txt that calls the custom syntax, this is so any necessary parameters can be extracted out.
-// The string slice is the slice containing all of the lines output to stdout
-// The integer will be the current position in the above slice that the grader is in
-// Furthermore, the functions will return two integer values.
-// The first integer represents the result score, which will hold either 1 or 0.
-// The second integer will be the new position in the slice containing stdout
-func initSyntaxDictionary() map[string]func(string, []string, int) (string, int, []string) {
-	SyntaxDictionary := make(map[string]func(string, []string, int) (string, int, []string))
+// Defining type of functions that will be used in the global syntax dictionary
+type SDFunc func(string, []string, int) (string, int, []string)
 
-	SyntaxDictionary["menu"] = func(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
-		// Menu keyword comes in the form of !menu(x),
-		// where x is a digit representing the number of options the menu should display.
-		// Menus should resemble the following form (using x = 3):
-		/*
-			Title of the menu \n
-			1. Option \n
-			2. Option \n
-			3. Option \n
-			Prompt:
-		*/
-		// This shape can be simplified to following:
-		/*
-			string
-			string leading with 2
-			string leading with 1
-			string leading with 3
-			string ending with :
-		*/
-		// Declare return variables
-		var feedback string = ""
-		var newPos int
-		modifiedStdout := StdOutput
+// Global Syntax Dictionary that can be called in other functions
+var SyntaxDictionary = map[string]SDFunc{
+	"menu":   menuHandler,
+	"ignore": ignoreHandler,
+}
 
-		// First, extract the value of x CONVERT
-		x_value, err := extractXValue(menuCall)
+// Handler for !menu(x) keyword in spec file
+func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
+	// Menu keyword comes in the form of !menu(x),
+	// where x is a digit representing the number of options the menu should display.
+	// Menus should resemble the following form (using x = 3):
+	/*
+		Title of the menu \n
+		1. Option \n
+		2. Option \n
+		3. Option \n
+		Prompt:
+	*/
+	// This shape can be simplified to following:
+	/*
+		string
+		string leading with 2
+		string leading with 1
+		string leading with 3
+		string ending with :
+	*/
+	// Declare return variables
+	var feedback string = ""
+	var newPos int
+	modifiedStdout := StdOutput
 
-		if err != nil || x_value < 1 {
-			return "Invalid menu parameter", startPos, StdOutput
-		}
-		// Get current position in stdout
-		curr := startPos
+	// First, extract the value of x CONVERT
+	x_value, err := extractXValue(menuCall)
 
-		// Now, evaluate the menu shape.
-		// Check for title
-		if StdOutput[curr] == "" {
-			feedback = "No title" // Check failed
-		}
+	if err != nil || x_value < 1 {
+		return "Invalid menu parameter", startPos, StdOutput
+	}
+	// Get current position in stdout
+	curr := startPos
 
-		curr++
+	// Now, evaluate the menu shape.
+	// Check for title
+	if StdOutput[curr] == "" {
+		feedback = "No title" // Check failed
+	}
 
-		if feedback != "" {
-			var additionalFeedback string
-			curr, additionalFeedback = hasMenuOptions(StdOutput, x_value, curr)
-			feedback += additionalFeedback
-		} else {
-			curr, feedback = hasMenuOptions(StdOutput, x_value, curr)
-		}
+	curr++
 
-		// Check to see if curr exceeds bounds again
-		if curr > len(StdOutput)-1 {
-			feedback += "Position exceeds bounds"
-			curr-- // Move curr back if it exceeds the bounds of StdOutput
-			newPos = curr
-			return feedback, newPos, modifiedStdout
-		}
+	if feedback != "" {
+		var additionalFeedback string
+		curr, additionalFeedback = hasMenuOptions(StdOutput, x_value, curr)
+		feedback += additionalFeedback
+	} else {
+		curr, feedback = hasMenuOptions(StdOutput, x_value, curr)
+	}
 
-		var promptPassed bool
-		promptPassed, modifiedStdout = hasPrompt(StdOutput, curr)
-
-		if !promptPassed {
-			feedback += " No prompt"
-			curr--
-		}
-
-		// Finally, update new position with current
+	// Check to see if curr exceeds bounds again
+	if curr > len(StdOutput)-1 {
+		feedback += "Position exceeds bounds"
+		curr-- // Move curr back if it exceeds the bounds of StdOutput
 		newPos = curr
-
 		return feedback, newPos, modifiedStdout
 	}
 
-	SyntaxDictionary["ignore"] = func(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
-		var feedback string = "Output ignored"
-		// Core functionality of ignore.... just skip da line
+	var promptPassed bool
+	promptPassed, modifiedStdout = hasPrompt(StdOutput, curr)
 
-		return feedback, startPos, StdOutput
+	if !promptPassed {
+		feedback += " No prompt"
+		curr--
 	}
-	return SyntaxDictionary
+
+	// Finally, update new position with current
+	newPos = curr
+
+	return feedback, newPos, modifiedStdout
+}
+
+// Handler for !ignore keyword
+func ignoreHandler(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
+	var feedback string = "Output ignored"
+	// Core functionality of ignore.... just skip da line
+
+	return feedback, startPos, StdOutput
 }
 
 func extractXValue(s string) (int, error) {
@@ -172,18 +170,4 @@ func hasPrompt(Stdout []string, pos int) (bool, []string) {
 			return false, Stdout
 		}
 	}
-}
-
-// Function that initializes the syntax dictionary and calls the menu function w given parameters.
-// Solely for unit tests.
-func menuWrapper(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
-	SyntaxDictionary := initSyntaxDictionary()
-	return SyntaxDictionary["menu"](menuCall, StdOutput, startPos)
-}
-
-// Function that initializes the syntax dictionary and calls the ignore function w given parameters
-// Solely for unit tests.
-func ignoreWrapper(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
-	SyntaxDictionary := initSyntaxDictionary()
-	return SyntaxDictionary["ignore"](ignoreCall, StdOutput, startPos)
 }
