@@ -279,7 +279,7 @@ func TestIgnoreHandler(t *testing.T) {
 	}
 
 	for i, tt := range Tests {
-		testname := fmt.Sprintf("ignoreWrapperTest%d", i)
+		testname := fmt.Sprintf("ignoreHandlerTest%d", i)
 
 		t.Run(testname, func(t *testing.T) {
 			feedback, endPos, modifiedStdout := ignoreHandler(tt.ignoreCall, tt.Stdout, tt.startPos)
