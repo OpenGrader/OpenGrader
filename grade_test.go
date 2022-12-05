@@ -140,7 +140,7 @@ func TestCreateCsv(t *testing.T) {
 
 	createCsv(res, tmp.Name())
 
-	expected := `student,compiled,ran correctly,diff
+	expected := `student,compiled,ran correctly,feedback
 aaa0001,true,false,<diff1>
 bbb0002,true,true,<diff2>
 ccc0003,false,false,<diff3>
@@ -367,8 +367,8 @@ func TestGradeSubmission(t *testing.T) {
 		t.Fatalf("Compile error")
 	}
 
-	if actual.diff != " Hello world!" {
-		t.Errorf("actual.diff mismatch, received %#v, want %#v", actual.diff, " Hello world!")
+	if actual.feedback != " Hello world!" {
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", actual.feedback, " Hello world!")
 	}
 
 	if !actual.runCorrect {

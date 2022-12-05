@@ -33,7 +33,7 @@ type SubmissionResult struct {
 	student        string
 	compileSuccess bool
 	runCorrect     bool
-	diff           string
+	feedback           string
 }
 
 // Enum to contain the different types of directives that could be used in spec file
@@ -126,9 +126,30 @@ func getDirectives(line string) directive {
 	return NONE
 }
 
+// Helper method to turn string slice into a readable, new line separated string that will print well in the report
+func stringSliceToPrettyString(input []string) string {
+	var output string = ""
+	for _, str := range input {
+		if str != "" {
+			output += fmt.Sprintf("%s\n", str)
+		}
+	}
+	return strings.TrimSpace(output)
+}
+
+// If all of the results are empty strings, program ran correct so return true. Else, return false
+func evalResults(res []string) bool {
+	for _, v := range res {
+		if v != "" {
+			return false
+		}
+	}
+	return true
+}
+
 // Function that evaluates student program output by computing it to expected output
 // Supports custom syntax in out.txt file, represented by the Syntax Dictionary in support.go
-func processOutput(expected, actual string) []string {
+func processOutput(expected, actual string) (bool, string) {
 
 	// Convert strings into array of strings separated by a newline and manipulate text to handle any directives
 	expectedLines, actualLines := handleDirectives(strings.Split(expected, "\n"), strings.Split(actual, "\n"))
@@ -136,7 +157,7 @@ func processOutput(expected, actual string) []string {
 	// Variable to track position in actualLines[]
 	position := 0
 
-	// Integer array containing evaluation of each line. Values either 1 or 0.
+	// String array containing feedback of each line.
 	results := make([]string, len(expectedLines))
 
 	// Loop across each line of expected to compare to actual
@@ -151,14 +172,24 @@ func processOutput(expected, actual string) []string {
 
 		switch getDirectives(line) {
 		case MENU:
-			results[i], position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
+			var feedback []string
+			feedback, position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
+			results[i] = stringSliceToPrettyString(feedback)
 		case IGNORE:
-			results[i], position, actualLines = SyntaxDictionary["ignore"](line, actualLines, i)
+			var feedback []string
+			feedback, position, actualLines = SyntaxDictionary["ignore"](line, actualLines, i)
+			results[i] = stringSliceToPrettyString(feedback)
 		case NONE:
-			_, results[i] = compare(line, actualLines[position])
+			isNotDiff, diff := compare(line, actualLines[position])
+			if isNotDiff {
+				results[i] = ""
+			} else {
+				results[i] = diff
+			}
+
 		}
 	}
-	return results
+	return evalResults(results), stringSliceToPrettyString(results)
 }
 
 // Convert boolean to string
@@ -175,10 +206,10 @@ func createCsv(results SubmissionResults, outfile string) {
 	throw(err)
 
 	writer := csv.NewWriter(file)
-	writer.Write([]string{"student", "compiled", "ran correctly", "diff"})
+	writer.Write([]string{"student", "compiled", "ran correctly", "feedback"})
 	for _, id := range results.order {
 		result := results.results[id]
-		row := []string{result.student, btoa(result.compileSuccess), btoa(result.runCorrect), result.diff}
+		row := []string{result.student, btoa(result.compileSuccess), btoa(result.runCorrect), result.feedback}
 		if err := writer.Write(row); err != nil {
 			log.Fatalln("error writing record to file", err)
 		}
@@ -299,7 +330,7 @@ func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wal
 	result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
 	if result.compileSuccess {
 		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
-		result.runCorrect, result.diff = compare(expected, stdout)
+		result.runCorrect, result.feedback = compare(expected, stdout)
 	}
 
 	return
@@ -336,7 +367,7 @@ func main() {
 			if result.compileSuccess {
 				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, input)
 				fmt.Printf("Output for %s: %s", result.student, stdout)
-				result.runCorrect, result.diff = compare(expected, stdout)
+				result.runCorrect, result.feedback = compare(expected, stdout)
 			}
 		}
 	} else {
@@ -349,13 +380,7 @@ func main() {
 			result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
 			if result.compileSuccess {
 				stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
-				result.runCorrect, result.diff = compare(expected, stdout)
-				// I am here for testing
-				newRes := processOutput(expected, stdout)
-				for i, res := range newRes {
-					fmt.Printf("Test %d: %s\n", i+1, res)
-				}
-				fmt.Println("")
+				result.runCorrect, result.feedback = processOutput(expected, stdout)
 			}
 		}
 

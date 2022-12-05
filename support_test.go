@@ -44,10 +44,10 @@ func TestHasMenuOptions(t *testing.T) {
 		position int
 		result   string
 	}{
-		{3, " Good menu"},
-		{5, " Good menu"},
-		{0, " Not a valid menu! Contains only 1 string."},
-		{5, " Not enough menu options"},
+		{3, ""},
+		{5, ""},
+		{0, "Not a valid menu! Contains only 1 string."},
+		{5, "Not enough menu options"},
 	}
 
 	for i, ti := range TestInput {
@@ -126,7 +126,7 @@ func TestMenuHandler(t *testing.T) {
 		menuCall      string
 		Stdout        []string
 		startPos      int
-		wantFeedback  string
+		wantFeedback  []string
 		wantEndPos    int
 		wantModStdout []string
 	}{
@@ -140,7 +140,9 @@ func TestMenuHandler(t *testing.T) {
 				"more output",
 			},
 			0,
-			" Not enough menu options",
+			[]string{
+				"Not enough menu options",
+			},
 			3,
 			[]string{
 				"Title",
@@ -158,7 +160,9 @@ func TestMenuHandler(t *testing.T) {
 				"string",
 			},
 			1,
-			"Invalid menu parameter",
+			[]string{
+				"Invalid menu parameter",
+			},
 			1,
 			[]string{
 				"string",
@@ -176,7 +180,9 @@ func TestMenuHandler(t *testing.T) {
 				"more",
 			},
 			0,
-			"No title Good menu",
+			[]string{
+				"No menu title",
+			},
 			3,
 			[]string{
 				"",
@@ -197,7 +203,7 @@ func TestMenuHandler(t *testing.T) {
 				"more extraneous output",
 			},
 			1,
-			" Good menu",
+			[]string{},
 			4,
 			[]string{
 				"Output before the menu",
@@ -212,13 +218,14 @@ func TestMenuHandler(t *testing.T) {
 	}
 
 	for i, tt := range Tests {
-		testname := fmt.Sprintf("menuHandlerTest%d", i)
+		testname := fmt.Sprintf("menuHandlerTest%d", i+1)
 
 		t.Run(testname, func(t *testing.T) {
 			feedback, endPos, modifiedStdout := menuHandler(tt.menuCall, tt.Stdout, tt.startPos)
-
-			if feedback != tt.wantFeedback {
-				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)
+			for i, v := range feedback {
+				if v != tt.wantFeedback[i] {
+					t.Errorf("Wanted %v got %v", tt.wantFeedback, feedback)
+				}
 			}
 
 			if endPos != tt.wantEndPos {
@@ -240,7 +247,7 @@ func TestIgnoreHandler(t *testing.T) {
 		ignoreCall    string
 		Stdout        []string
 		startPos      int
-		wantFeedback  string
+		wantFeedback  []string
 		wantEndPos    int
 		wantModStdout []string
 	}{
@@ -253,7 +260,7 @@ func TestIgnoreHandler(t *testing.T) {
 				"2",
 			},
 			1,
-			"Output ignored",
+			[]string{},
 			1,
 			[]string{
 				"Hello",
@@ -269,7 +276,7 @@ func TestIgnoreHandler(t *testing.T) {
 				"Hello",
 			},
 			0,
-			"Output ignored",
+			[]string{},
 			0,
 			[]string{
 				"!ignore",
@@ -284,8 +291,10 @@ func TestIgnoreHandler(t *testing.T) {
 		t.Run(testname, func(t *testing.T) {
 			feedback, endPos, modifiedStdout := ignoreHandler(tt.ignoreCall, tt.Stdout, tt.startPos)
 
-			if feedback != tt.wantFeedback {
-				t.Errorf("Wanted feedback of %v got %v", tt.wantFeedback, feedback)
+			for i, v := range feedback {
+				if v != tt.wantFeedback[i] {
+					t.Errorf("Wanted %v got %v", tt.wantFeedback, feedback)
+				}
 			}
 
 			if endPos != tt.wantEndPos {

@@ -6,7 +6,7 @@ import (
 )
 
 // Defining type of functions that will be used in the global syntax dictionary
-type SDFunc func(string, []string, int) (string, int, []string)
+type SDFunc func(string, []string, int) ([]string, int, []string)
 
 // Global Syntax Dictionary that can be called in other functions
 var SyntaxDictionary = map[string]SDFunc{
@@ -15,7 +15,7 @@ var SyntaxDictionary = map[string]SDFunc{
 }
 
 // Handler for !menu(x) keyword in spec file
-func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
+func menuHandler(menuCall string, StdOutput []string, startPos int) ([]string, int, []string) {
 	// Menu keyword comes in the form of !menu(x),
 	// where x is a digit representing the number of options the menu should display.
 	// Menus should resemble the following form (using x = 3):
@@ -33,7 +33,7 @@ func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int
 		prompt string
 	*/
 	// Declare return variables
-	var feedback string = ""
+	var feedback []string
 	var newPos int
 	modifiedStdout := StdOutput
 
@@ -41,7 +41,8 @@ func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int
 	x_value, err := extractXValue(menuCall)
 
 	if err != nil || x_value < 1 {
-		return "Invalid menu parameter", startPos, StdOutput
+		feedback = append(feedback, "Invalid menu parameter")
+		return feedback, startPos, StdOutput
 	}
 	// Get current position in stdout
 	curr := startPos
@@ -49,22 +50,20 @@ func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int
 	// Now, evaluate the menu shape.
 	// Check for title
 	if StdOutput[curr] == "" {
-		feedback = "No title" // Check failed
+		feedback = append(feedback, "No menu title") // Check failed
 	}
 
 	curr++
 
-	if feedback != "" {
-		var additionalFeedback string
-		curr, additionalFeedback = hasMenuOptions(StdOutput, x_value, curr)
-		feedback += additionalFeedback
-	} else {
-		curr, feedback = hasMenuOptions(StdOutput, x_value, curr)
+	var additionalFeedback string
+	curr, additionalFeedback = hasMenuOptions(StdOutput, x_value, curr)
+	if additionalFeedback != "" {
+		feedback = append(feedback, additionalFeedback) // If there is feedback, append
 	}
 
 	// Check to see if curr exceeds bounds again
 	if curr > len(StdOutput)-1 {
-		feedback += "Position exceeds bounds"
+		feedback = append(feedback, "Position exceeds bounds")
 		curr-- // Move curr back if it exceeds the bounds of StdOutput
 		newPos = curr
 		return feedback, newPos, modifiedStdout
@@ -74,7 +73,7 @@ func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int
 	promptPassed, modifiedStdout = hasPrompt(StdOutput, curr)
 
 	if !promptPassed {
-		feedback += " No prompt"
+		feedback = append(feedback, "No prompt")
 		curr--
 	}
 
@@ -85,8 +84,8 @@ func menuHandler(menuCall string, StdOutput []string, startPos int) (string, int
 }
 
 // Handler for !ignore keyword
-func ignoreHandler(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
-	var feedback string = "Output ignored"
+func ignoreHandler(ignoreCall string, StdOutput []string, startPos int) ([]string, int, []string) {
+	feedback := make([]string, 0)
 	// Core functionality of ignore.... just skip da line
 
 	return feedback, startPos, StdOutput
@@ -99,17 +98,17 @@ func extractXValue(s string) (int, error) {
 	return x, err
 }
 
-func hasMenuOptions(output []string, x_value, currPos int) (pos int, pass string) {
-	pass = " Good menu"
+func hasMenuOptions(output []string, x_value, currPos int) (pos int, feedback string) {
+	feedback = ""
 	if len(output) == 1 {
-		pass = " Not a valid menu! Contains only 1 string."
-		return 0, pass
+		feedback = "Not a valid menu! Contains only 1 string."
+		return 0, feedback
 	}
 	for i := 1; i <= x_value; i++ {
 		if currPos > len(output)-1 {
 			currPos-- // Move curr back if it exceeds the bounds of StdOutput
-			pass = " No more output remaining"
-			return currPos, pass
+			feedback = "No more output remaining"
+			return currPos, feedback
 		}
 
 		var earlyPromptFound bool
@@ -117,13 +116,13 @@ func hasMenuOptions(output []string, x_value, currPos int) (pos int, pass string
 
 		if earlyPromptFound {
 			// fmt.Println("Early prompt")
-			pass = " Not enough menu options"
+			feedback = "Not enough menu options"
 			break
 		}
 
 		currPos++
 	}
-	return currPos, pass
+	return currPos, feedback
 }
 
 func findTrailingPrompt(s string) bool {
