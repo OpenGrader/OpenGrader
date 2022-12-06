@@ -1,117 +1,114 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 )
 
-// Returns the Syntax Dictionary that maps keywords to functions that handle the processing of their output.
-// The functions will each accept a string, a string slice, and an integer
-// The string will be the line from out.txt that calls the custom syntax, this is so any necessary parameters can be extracted out.
-// The string slice is the slice containing all of the lines output to stdout
-// The integer will be the current position in the above slice that the grader is in
-// Furthermore, the functions will return two integer values.
-// The first integer represents the result score, which will hold either 1 or 0.
-// The second integer will be the new position in the slice containing stdout
-func initSyntaxDictionary() map[string]func(string, []string, int) (string, int, []string) {
-	SyntaxDictionary := make(map[string]func(string, []string, int) (string, int, []string))
+// Defining type of functions that will be used in the global syntax dictionary
+type SDFunc func(string, []string, int) ([]string, int, []string)
 
-	SyntaxDictionary["menu"] = func(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
-		// Menu keyword comes in the form of !menu(x),
-		// where x is a digit representing the number of options the menu should display.
-		// Menus should resemble the following form (using x = 3):
-		/*
-			Title of the menu \n
-			1. Option \n
-			2. Option \n
-			3. Option \n
-			Prompt:
-		*/
-		// This shape can be simplified to following:
-		/*
-			string
-			string leading with 2
-			string leading with 1
-			string leading with 3
-			string ending with :
-		*/
-		// Declare return variables
-		var feedback string = ""
-		var newPos int
-		modifiedStdout := StdOutput
+// Global Syntax Dictionary that can be called in other functions
+var SyntaxDictionary = map[string]SDFunc{
+	"menu":   menuHandler,
+	"ignore": ignoreHandler,
+}
 
-		// First, extract the value of x CONVERT
-		x_value := extractXValue(menuCall)
+// Handler for !menu(x) keyword in spec file
+func menuHandler(menuCall string, StdOutput []string, startPos int) ([]string, int, []string) {
+	// Menu keyword comes in the form of !menu(x),
+	// where x is a digit representing the number of options the menu should display.
+	// Menus should resemble the following form (using x = 3):
+	/*
+		Title of the menu \n
+		1. Option \n
+		2. Option \n
+		3. Option \n
+		Prompt:
+	*/
+	// This shape can be simplified to following:
+	/*
+		title string
+		x option strings between
+		prompt string
+	*/
+	// Declare return variables
+	var feedback []string
+	var newPos int
+	modifiedStdout := StdOutput
 
-		if x_value < 1 || x_value > 9 {
-			return "Invalid menu parameter", startPos, StdOutput
-		}
-		// Get current position in stdout
-		curr := startPos
+	// First, extract the value of x CONVERT
+	x_value, err := extractXValue(menuCall)
 
-		// Now, evaluate the menu shape.
-		// Check for title
-		if StdOutput[curr] == "" {
-			feedback = "No title" // Check failed
-		}
+	if err != nil || x_value < 1 {
+		feedback = append(feedback, "Invalid menu parameter")
+		return feedback, startPos, StdOutput
+	}
+	// Get current position in stdout
+	curr := startPos
 
-		curr++
+	// Now, evaluate the menu shape.
+	// Check for title
+	if StdOutput[curr] == "" {
+		feedback = append(feedback, "No menu title") // Check failed
+	}
 
-		if feedback != "" {
-			var additionalFeedback string
-			curr, additionalFeedback = hasOptions(StdOutput, x_value, curr)
-			feedback += additionalFeedback
-		} else {
-			curr, feedback = hasOptions(StdOutput, x_value, curr)
-		}
+	curr++
 
-		// Check to see if curr exceeds bounds again
-		if curr > len(StdOutput)-1 {
-			feedback += "Position exceeds bounds"
-			curr-- // Move curr back if it exceeds the bounds of StdOutput
-			newPos = curr
-			return feedback, newPos, modifiedStdout
-		}
+	var additionalFeedback string
+	curr, additionalFeedback = hasMenuOptions(StdOutput, x_value, curr)
+	if additionalFeedback != "" {
+		feedback = append(feedback, additionalFeedback) // If there is feedback, append
+	}
 
-		var promptPassed bool
-		promptPassed, modifiedStdout = hasPrompt(StdOutput, curr)
-
-		if !promptPassed {
-			feedback += " No prompt"
-			curr--
-		}
-
-		// Finally, update new position with current
+	// Check to see if curr exceeds bounds again
+	if curr > len(StdOutput)-1 {
+		feedback = append(feedback, "Position exceeds bounds")
+		curr-- // Move curr back if it exceeds the bounds of StdOutput
 		newPos = curr
-
 		return feedback, newPos, modifiedStdout
 	}
 
-	SyntaxDictionary["ignore"] = func(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
-		var feedback string = "Output ignored"
-		// Core functionality of ignore.... just skip da line
+	var promptPassed bool
+	promptPassed, modifiedStdout = hasPrompt(StdOutput, curr)
 
-		return feedback, startPos, StdOutput
+	if !promptPassed {
+		feedback = append(feedback, "No prompt")
+		curr--
 	}
-	return SyntaxDictionary
+
+	// Finally, update new position with current
+	newPos = curr
+
+	return feedback, newPos, modifiedStdout
 }
 
-func extractXValue(s string) int {
-	x_index := strings.Index(s, "(") + 1
-	x_value := int(s[x_index]) - 48 // Ascii subtract
-	return x_value
+// Handler for !ignore keyword
+func ignoreHandler(ignoreCall string, StdOutput []string, startPos int) ([]string, int, []string) {
+	feedback := make([]string, 0)
+	// Core functionality of ignore.... just skip da line
+
+	return feedback, startPos, StdOutput
 }
 
-func hasOptions(output []string, x_value, currPos int) (pos int, pass string) {
-	pass = " Good menu"
+func extractXValue(s string) (int, error) {
+	startIndex := strings.Index(s, "(") + 1        // index value of the first digit
+	endIndex := strings.Index(s, ")")              // Index value of the right parantheses
+	x, err := strconv.Atoi(s[startIndex:endIndex]) // substring from 1st digit to last digit
+	return x, err
+}
+
+func hasMenuOptions(output []string, x_value, currPos int) (pos int, feedback string) {
+	feedback = ""
 	if len(output) == 1 {
-		pass = " Not a valid menu! Contains only 1 string."
-		return 0, pass
+		feedback = "Not a valid menu! Contains only 1 string."
+		return 0, feedback
 	}
 	for i := 1; i <= x_value; i++ {
 		if currPos > len(output)-1 {
 			currPos-- // Move curr back if it exceeds the bounds of StdOutput
-			pass = " No more output remaining"
-			return currPos, pass
+			feedback = "No more output remaining"
+			return currPos, feedback
 		}
 
 		var earlyPromptFound bool
@@ -119,57 +116,55 @@ func hasOptions(output []string, x_value, currPos int) (pos int, pass string) {
 
 		if earlyPromptFound {
 			// fmt.Println("Early prompt")
-			pass = " Not enough menu options"
+			feedback = "Not enough menu options"
 			break
 		}
 
 		currPos++
 	}
-	return currPos, pass
+	return currPos, feedback
 }
 
-func hasPrompt(Stdout []string, pos int) (result bool, modifiedStdout []string) {
-	modifiedStdout = Stdout
-	result = true
-	if strings.HasSuffix(strings.TrimSpace(Stdout[pos]), ":") || strings.HasSuffix(strings.TrimSpace(Stdout[pos]), "?") {
-		return result, modifiedStdout
+func findTrailingPrompt(s string) bool {
+	if strings.HasSuffix(strings.TrimSpace(s), ":") || strings.HasSuffix(strings.TrimSpace(s), "?") {
+		return true
+	} else {
+		return false
 	}
+}
 
-	if !strings.HasSuffix(strings.TrimSpace(Stdout[pos]), ":") && !strings.HasSuffix(strings.TrimSpace(Stdout[pos]), "?") {
+// Split a given string within a slice in two around a given character. First half of split remains in original slice position,
+// while the second half is inserted after
+func splitStringInSlice(slice []string, pos int, char string) []string {
+	tempSlice := strings.SplitAfter(slice[pos], char)
+	slice[pos] = tempSlice[0]
+	return insertIntoStringSlice(slice, strings.TrimSpace(tempSlice[1]), pos+1)
+}
+
+// Insert a string into a string slice at position i
+// following me implementation from https://github.com/golang/go/wiki/SliceTricks#Insert
+func insertIntoStringSlice(slice []string, val string, i int) []string {
+	slice = append(slice, "") // append empty value at end of string to make room for one more value
+	copy(slice[i+1:], slice[i:])
+	slice[i] = val
+	return slice
+}
+
+func hasPrompt(Stdout []string, pos int) (bool, []string) {
+	if findTrailingPrompt(Stdout[pos]) {
+		return true, Stdout
+	} else {
 		// Search for that : or ? in there!
 		// If there is no newline after the : stdout will begin printing right after the colon instead of on the next line
 		if strings.Contains(strings.TrimSpace(Stdout[pos]), ":") {
-			// Split line into two strings, the prompt and the output that was appended to it
-			tempSlice := strings.SplitAfter(Stdout[pos], ":") // temp slice to extract values out of...
-			modifiedStdout[pos] = tempSlice[0]
-			misplacedOutput := strings.TrimSpace(tempSlice[1])
-			modifiedStdout = append(modifiedStdout[:pos+2], modifiedStdout[pos+1:]...)
-			modifiedStdout[pos+1] = misplacedOutput
+			// Split the value that contains the prompt and r
+			modifiedStdout := splitStringInSlice(Stdout, pos, ":")
+			return true, modifiedStdout
 		} else if strings.Contains(strings.TrimSpace(Stdout[pos]), "?") {
-			// Split line into two strings, the prompt and the output that was appended to it
-			tempSlice := strings.SplitAfter(Stdout[pos], "?") // temp slice to extract values out of...
-			modifiedStdout[pos] = tempSlice[0]
-			misplacedOutput := strings.TrimSpace(tempSlice[1])
-			modifiedStdout = append(modifiedStdout[:pos+2], modifiedStdout[pos+1:]...)
-			modifiedStdout[pos+1] = misplacedOutput
+			modifiedStdout := splitStringInSlice(Stdout, pos, "?")
+			return true, modifiedStdout
 		} else {
-			result = false
+			return false, Stdout
 		}
-
 	}
-	return result, modifiedStdout
-}
-
-// Function that initializes the syntax dictionary and calls the menu function w given parameters.
-// Solely for unit tests.
-func menuWrapper(menuCall string, StdOutput []string, startPos int) (string, int, []string) {
-	SyntaxDictionary := initSyntaxDictionary()
-	return SyntaxDictionary["menu"](menuCall, StdOutput, startPos)
-}
-
-// Function that initializes the syntax dictionary and calls the ignore function w given parameters
-// Solely for unit tests.
-func ignoreWrapper(ignoreCall string, StdOutput []string, startPos int) (string, int, []string) {
-	SyntaxDictionary := initSyntaxDictionary()
-	return SyntaxDictionary["ignore"](ignoreCall, StdOutput, startPos)
 }
