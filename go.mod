@@ -7,4 +7,8 @@ require (
 	github.com/vulpine-io/io-test v1.0.0
 )
 
-require github.com/sergi/go-diff v1.2.0 // indirect
+require (
+	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/sergi/go-diff v1.2.0 // indirect
+	gopkg.in/yaml.v2 v2.2.8 // indirect
+)

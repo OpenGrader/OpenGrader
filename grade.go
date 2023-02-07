@@ -33,7 +33,7 @@ type SubmissionResult struct {
 	student        string
 	compileSuccess bool
 	runCorrect     bool
-	feedback           string
+	feedback       string
 }
 
 // Enum to contain the different types of directives that could be used in spec file
@@ -300,13 +300,14 @@ func OSReadDir(root string) []string {
 }
 
 // Parse user input flags and return as strings.
-func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool) {
+func parseFlags() (workDir, runArgs, outFile, inFile, language string, server, wall bool) {
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
 	flag.StringVar(&inFile, "in", "", "file to read interactive input from")
 	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
 	flag.StringVar(&language, "lang", "", "Language to be tested")
+	flag.BoolVar(&server, "server", false, "Run OpenGrader server instead of engine")
 
 	flag.Parse()
 
@@ -337,7 +338,13 @@ func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wal
 }
 
 func main() {
-	workDir, runArgs, outFile, inFile, language, wall := parseFlags()
+	workDir, runArgs, outFile, inFile, language, server, wall := parseFlags()
+
+	if (server) {
+		fmt.Println("serving...")
+		Server()
+		return
+	}
 
 	fmt.Println("workdir: ", workDir)
 
