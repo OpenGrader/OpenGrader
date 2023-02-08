@@ -102,19 +102,29 @@ func createCsv(results SubmissionResults, outfile string) {
 
 // Compiles a student submission located in $dir.
 // Returns true if compiled without errors.
-func compile(dir string, wall bool) bool {
-	compilePath, err := filepath.Glob(dir + "/*.cpp")
-	throw(err)
-
+func compile(dir, language string, wall bool) bool {
+	var err error
+	var compilePath []string
 	var cmd *exec.Cmd
-	if wall {
-		compilePath = append([]string{"-Wall"}, compilePath...)
-		cmd = exec.Command("g++", compilePath...)
-	} else {
-		cmd = exec.Command("g++", compilePath...)
-	}
-	cmd.Dir = dir
 
+	if language == "java" {
+		compilePath, err = filepath.Glob(dir + "/*.java")
+		cmd = exec.Command("javac", compilePath...)
+
+	} else if language == "c++" {
+		compilePath, err = filepath.Glob(dir + "/*.cpp")
+		if wall {
+			compilePath = append([]string{"-Wall"}, compilePath...)
+			cmd = exec.Command("g++", compilePath...)
+		} else {
+			cmd = exec.Command("g++", compilePath...)
+		}
+	} else {
+		throw(err)
+		fmt.Print("Compilation error, no language found")
+	}
+
+	cmd.Dir = dir
 	compileErr := cmd.Run()
 
 	// test if exit 0
@@ -122,10 +132,16 @@ func compile(dir string, wall bool) bool {
 }
 
 // Run the compiled program in directory $dir with command-line args $args
-func runCompiled(dir, args string, input []string) string {
+func runCompiled(dir, args, language string, input []string) string {
 	var stdout CmdOutput
+	var cmd *exec.Cmd
+	var err error
 
-	cmd := exec.Command("./a.out", strings.Fields(args)...)
+	if language == "java" {
+		cmd = exec.Command("java", strings.Fields(args)...)
+	} else if language == "c++" {
+		cmd = exec.Command("./a.out", strings.Fields(args)...) // my computer uses a.exe, but this was originally a.out, in case it doesn't work for u, we are working on not hard coding it
+	}
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 
@@ -135,20 +151,24 @@ func runCompiled(dir, args string, input []string) string {
 	cmd.Start()
 
 	processInput(stdin, input)
-
 	cmd.Wait()
 	return string(stdout.savedOutput)
 }
 
-func runInterpreted(dir, args string, input []string) string {
+func runInterpreted(dir, args, language string, input []string) string {
 	var stdout CmdOutput
+	var cmd *exec.Cmd
 
-	cmd := exec.Command("python3", strings.Fields(args)...)	//ex: python3 main.py arg1 arg2 ... argN
+	if language == "js" || language == "javascript" {
+		cmd = exec.Command("node", strings.Fields(args)...)
+	} else {
+		cmd = exec.Command(language, strings.Fields(args)...) // ex: python3 main.py arg1 arg2 ... argN
+	}
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	stdin, err := cmd.StdinPipe()
 	throw(err)
-	
+
 	cmd.Start()
 	processInput(stdin, input)
 	cmd.Wait()
@@ -207,12 +227,14 @@ func parseInFile(inFile string) (input []string) {
 }
 
 // Grade a single student's submission.
-func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wall bool) (result SubmissionResult) {
+func gradeSubmission(dir, workDir, runArgs, expected, language string, input []string, wall bool) (result SubmissionResult) {
 	result.student = dir
+	result.compileSuccess = compile(filepath.Join(workDir, dir), language, wall)
 
-	result.compileSuccess = compile(filepath.Join(workDir, dir), wall)
 	if result.compileSuccess {
-		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
+		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
+		fmt.Print(stdout)
+
 		result.runCorrect, result.diff = compare(expected, stdout)
 	}
 
@@ -221,8 +243,6 @@ func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wal
 
 func main() {
 	workDir, runArgs, outFile, inFile, language, wall := parseFlags()
-
-	fmt.Println("workdir: ", workDir)
 
 	cmd := exec.Command("ls")
 	cmd.Dir = workDir
@@ -233,12 +253,14 @@ func main() {
 	input := parseInFile(inFile)
 
 	expected := getFile(workDir + "/.spec/out.txt")
-	fmt.Println("Expected output: ", expected)
+
+	fmt.Println("\nExpected output: ", expected)
+	fmt.Print("\n")
 
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
 
-	if language == "python3" || language == "python" {
+	if language == "python3" || language == "python" || language == "javascript" || language == "js" {
 		for _, dir := range dirs {
 			var result SubmissionResult
 			results.results[dir] = &result
@@ -248,19 +270,21 @@ func main() {
 			result.compileSuccess = true
 
 			if result.compileSuccess {
-				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, input)
+				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
 				fmt.Printf("Output for %s: %s", result.student, stdout)
 				result.runCorrect, result.diff = compare(expected, stdout)
 			}
 		}
-	} else {
+	} else if language == "java" || language == "c++" {
 		for _, dir := range dirs {
-			result := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
+			result := gradeSubmission(dir, workDir, runArgs, expected, language, input, wall)
 			results.results[dir] = &result
 			results.order = append(results.order, dir)
 		}
+	} else {
+		fmt.Print("No language found")
 	}
-
+	fmt.Print("\n")
 	for _, id := range results.order {
 		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
 	}
