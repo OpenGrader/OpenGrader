@@ -168,7 +168,7 @@ func TestCompile(t *testing.T) {
 
 	dir := strings.Join(parts, "/")
 
-	result := compile(dir, false)
+	result := compile(dir, "c++", false)
 	if !result {
 		t.Error("Compile returned false, expected true.")
 	}
@@ -195,7 +195,7 @@ func TestCompileWallSuccess(t *testing.T) {
 
 	dir := strings.Join(parts, "/")
 
-	result := compile(dir, true)
+	result := compile(dir, "c++", true)
 	if !result {
 		t.Error("Compile returned false, expected true.")
 	}
@@ -221,7 +221,7 @@ func TestCompileWallFailure(t *testing.T) {
 
 	dir := strings.Join(parts, "/")
 
-	result := compile(dir, true)
+	result := compile(dir, "c++", true)
 	if result {
 		t.Error("Compile returned true, expected false.")
 	}
@@ -247,7 +247,7 @@ func TestRunCompiled(t *testing.T) {
 
 	dir := strings.Join(parts, "/")
 
-	result := compile(dir, true)
+	result := compile(dir, "c++", true)
 	if !result {
 		t.Error("Compile returned false, expected true.")
 	}
@@ -260,7 +260,7 @@ func TestRunCompiled(t *testing.T) {
 	}
 
 	expected := "Hello world!\n"
-	actual := runCompiled(dir, "", []string{})
+	actual := runCompiled(dir, "", "c++", []string{})
 
 	if expected != actual {
 		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
@@ -358,10 +358,11 @@ func TestGradeSubmission(t *testing.T) {
 	// run and validate
 	runArgs := ""
 	expected := "Hello world!"
+	language := "c++"
 	input := []string{}
 	wall := false
 
-	actual := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
+	actual := gradeSubmission(dir, workDir, runArgs, expected, language, input, wall)
 
 	if !actual.compileSuccess {
 		t.Fatalf("Compile error")
