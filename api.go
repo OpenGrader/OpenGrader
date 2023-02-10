@@ -23,14 +23,6 @@ func Server() {
 	http.HandleFunc("/grade", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "POST":
-
-			// calling this function parses the request body and fills the req.MultipartForm field
-			// err := req.ParseMultipartForm(32 << 20) // 32 << 20 = 32 MB for max memory to hold the files
-			// if err != nil {
-			// 	w.WriteHeader(http.StatusBadRequest + 21)
-			// 	return
-			// }
-
 			// Extract args + assignment ID from URL using req.URL object
 			// This will assignment ID will be used to grab the spec/out.txt + spec/in.txt
 			assignmentId := r.URL.Query().Get("assignment")
@@ -41,6 +33,9 @@ func Server() {
 				w.WriteHeader(http.StatusBadRequest + 20)
 				return
 			}
+
+			// Get student ID. Repeat same functionality as above
+			studentId := "12354"
 
 			// Load environment Variables
 			err := godotenv.Load(".env")
@@ -93,14 +88,54 @@ func Server() {
 			defer outFileResp.Body.Close()
 			throw(err)
 
-			// Convert to strings as originally in []byte form, each byte being a unicode numeric representatin of each character in the string
-			inFileContent := string(inFileByteContent)
-			outFileContent := string(outFileByteContent)
+			// Prepare local directory
+			err = os.MkdirAll("./submissions/"+assignmentId+"/.spec/", 0766)
+			if err != nil {
+				log.Fatalf("Error:\t%v\n", err)
+			}
 
-			fmt.Printf("Input File Content: %s\n\nOutput File Content: %s\n", inFileContent, outFileContent)
-			fmt.Printf("Language: %s, Args: %s\n", queryResults[0].Language, queryResults[0].Args)
+			err = os.MkdirAll("./submissions/"+assignmentId+"/"+studentId+"/", 0766)
+			if err != nil {
+				log.Fatalf("Error:\t%v\n", err)
+			}
 
-			//
+			// Create local spec files
+			err = os.WriteFile("./submissions/"+assignmentId+"/.spec/in.txt", inFileByteContent, 0666)
+			if err != nil {
+				log.Fatalf("Error:\t%v\n", err)
+			}
+
+			err = os.WriteFile("./submissions/"+assignmentId+"/.spec/out.txt", outFileByteContent, 0666)
+			if err != nil {
+				log.Fatalf("Error:\t%v\n", err)
+			}
+
+			// Parse Mutlipart form time D:
+			// calling this function parses the request body and fills the req.MultipartForm field
+			err = r.ParseMultipartForm(32 << 20) // 32 << 20 = 32 MB for max memory to hold the files
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest + 21)
+				return
+			}
+
+			// Iterate over multipart form files with name="code" and build local submissions directory
+			for _, header := range r.MultipartForm.File["code"] {
+				file, err := header.Open()
+				throw(err)
+				// Continue tomorrow
+				localFile, err := os.Create("./submissions/" + assignmentId + "/" + studentId + "/" + header.Filename)
+				throw(err)
+				io.Copy(localFile, file)
+				file.Close()
+			}
+
+			// All pieces to forge the great weapon acquired. Assemble.
+			
+
+			// Send grade to
+
+
+			// Clean up
 
 			fmt.Fprint(w, "Still POSTed up! o7")
 
