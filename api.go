@@ -10,7 +10,6 @@ import (
 	"os"
 	"github.com/OpenGrader/OpenGrader/util"
 
-
 	"github.com/joho/godotenv"
 )
 
@@ -38,8 +37,14 @@ func Server() {
 			}
 
 			// Get student ID. Repeat same functionality as above
-			studentId := "12354"
-
+			studentId := r.URL.Query().Get("student")
+			if assignmentId != "" {
+				fmt.Printf("Student ID is: %s\n", studentId)
+			} else {
+				fmt.Println("No student ID is passed")
+				w.WriteHeader(http.StatusBadRequest + 21)
+				return
+			}
 			// Load environment Variables
 			err := godotenv.Load(".env")
 			util.Throw(err)
@@ -67,11 +72,6 @@ func Server() {
 			if resp.StatusCode != http.StatusOK {
 				fmt.Fprintf(w, "Failure to fetch assignment information")
 			}
-
-			// bodyBytes, err := io.ReadAll(resp.Body) CALLING THIS FUNCTION MEANS U CANT READ THE BODY LATER !!!! BAD LANGUAGE
-			// defer resp.Body.Close()
-			// util.Throw(err)
-			// bodyString := string(bodyBytes)
 
 			// Decode JSON in a confusing way
 			var queryResults []AssigmentTableQuery
@@ -126,31 +126,34 @@ func Server() {
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
 				file, err := header.Open()
-				throw(err)
+				util.Throw(err)
 				// Save locally
 				localFile, err := os.Create("./submissions/" + assignmentId + "/" + studentId + "/" + header.Filename)
-				throw(err)
+				util.Throw(err)
 				io.Copy(localFile, file)
 
 				// Gather file bytes for bucket upload body
+				// Rewind file pointer to start
+				file.Seek(0, io.SeekStart)
 				fileBytes, err := io.ReadAll(file)
-				throw(err)
-
+				util.Throw(err)
+				fmt.Println(fileBytes)
 				bucketReq, err := http.NewRequest(
 					http.MethodPost, 
 					bucketUrl+studentId+"_"+header.Filename, 
 					bytes.NewReader(fileBytes),
 				)
-				throw(err)
+				util.Throw(err)
 				bucketReq.Header.Add("apikey", supabaseKey)
 				bucketReq.Header.Add("Authorization", "Bearer "+supabaseKey)
 
 				// Send to bucket
 				storageResponse, err := client.Do(bucketReq)
-				throw(err)
+				util.Throw(err)
 				if storageResponse.StatusCode != http.StatusOK {
 					fmt.Fprintf(w, "Failure to upload file to bucket")
 				}
+				fmt.Println(responseBodyToString(storageResponse))
 				file.Close()
 			}
 
@@ -167,4 +170,12 @@ func Server() {
 	})
 
 	log.Fatal(http.ListenAndServe(":4200", nil))
+}
+
+func responseBodyToString(res *http.Response) (s string, e error) {
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
 }
