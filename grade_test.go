@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/OpenGrader/OpenGrader/util"
 	"github.com/vulpine-io/io-test/v1/pkg/iotest"
 )
 
@@ -36,7 +37,7 @@ func TestThrow(t *testing.T) {
 		}
 	}()
 
-	throw(sampleErr)
+	util.Throw(sampleErr)
 }
 
 func TestGetFile(t *testing.T) {
@@ -127,15 +128,16 @@ func TestBtoaTrue(t *testing.T) {
 }
 
 func TestCreateCsv(t *testing.T) {
-	var res SubmissionResults
-	res.results = make(map[string]*SubmissionResult)
+	var res util.SubmissionResults
+	res.Results = make(map[string]*util.SubmissionResult)
 
-	res.results["aaa0001"] = &SubmissionResult{"aaa0001", true, false, "<diff1>"}
-	res.results["bbb0002"] = &SubmissionResult{"bbb0002", true, true, "<diff2>"}
-	res.results["ccc0003"] = &SubmissionResult{"ccc0003", false, false, "<diff3>"}
-	res.order = []string{"aaa0001", "bbb0002", "ccc0003"}
+	res.Results["aaa0001"] = &util.SubmissionResult{Student: "aaa0001", CompileSuccess: true, RunCorrect: false, Feedback: "<diff1>", AssignmentId: int8(1), StudentId: int8(1)}
+	res.Results["bbb0002"] = &util.SubmissionResult{Student: "bbb0002", CompileSuccess: true, RunCorrect: true, Feedback: "<diff2>", AssignmentId: 1, StudentId: 1}
+	res.Results["ccc0003"] = &util.SubmissionResult{Student: "ccc0003", CompileSuccess: false, RunCorrect: false, Feedback: "<diff3>", AssignmentId: 1, StudentId: 1}
+	res.Order = []string{"aaa0001", "bbb0002", "ccc0003"}
 
 	tmp, _ := os.CreateTemp("", "*")
+	defer os.Remove(tmp.Name())
 	tmp.Close()
 
 	createCsv(res, tmp.Name())
@@ -285,10 +287,11 @@ func TestParseFlags(t *testing.T) {
 	expectedOutFile := "my-outfile"
 	expectedInFile := "my-infile"
 	expectedWall := false
+	expectedDryRun := false
 
 	os.Args = []string{"test", "--out", expectedOutFile, "--in", expectedInFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs}
 
-	workDir, runArgs, outFile, inFile, _, wall := parseFlags()
+	workDir, runArgs, outFile, inFile, _, wall, isDryRun := parseFlags()
 
 	if workDir != expectedWorkDir {
 		t.Errorf("Mismatched workDir [expected=%#v] [actual=%#v]", expectedWorkDir, workDir)
@@ -309,10 +312,15 @@ func TestParseFlags(t *testing.T) {
 	if wall != expectedWall {
 		t.Errorf("Mismatched wall [expected=%#v] [actual=%#v]", expectedWall, wall)
 	}
+
+	if isDryRun != expectedDryRun {
+		t.Errorf("Mismatched isDryRun [expected=%#v] [actual=%#v]", expectedDryRun, isDryRun)
+	}
 }
 
 func TestParseInFileWithInput(t *testing.T) {
 	tmp, _ := os.CreateTemp("", "*.cpp")
+	defer os.Remove(tmp.Name())
 
 	tmp.Write([]byte("test\nmultiline \ninput\nfor\nprogram\n"))
 
@@ -363,19 +371,19 @@ func TestGradeSubmission(t *testing.T) {
 
 	actual := gradeSubmission(dir, workDir, runArgs, expected, input, wall)
 
-	if !actual.compileSuccess {
+	if !actual.CompileSuccess {
 		t.Fatalf("Compile error")
 	}
 
-	if actual.feedback != " Hello world!" {
-		t.Errorf("actual.diff mismatch, received %#v, want %#v", actual.feedback, " Hello world!")
+	if actual.Feedback != " Hello world!" {
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", actual.Feedback, " Hello world!")
 	}
 
-	if !actual.runCorrect {
+	if !actual.RunCorrect {
 		t.Errorf("actual.runCorrect is false, want true")
 	}
 
-	if actual.student != dir {
-		t.Errorf("actual.student mismatch, received %#v, want %#v", actual.student, dir)
+	if actual.Student != dir {
+		t.Errorf("actual.student mismatch, received %#v, want %#v", actual.Student, dir)
 	}
 }
