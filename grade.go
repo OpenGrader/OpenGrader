@@ -14,26 +14,16 @@ import (
 	"strings"
 
 	"github.com/andreyvit/diff"
+	"github.com/joho/godotenv"
+	supa "github.com/nedpals/supabase-go"
+
+	"github.com/OpenGrader/OpenGrader/db"
+	"github.com/OpenGrader/OpenGrader/util"
 )
 
 // Emulates stdout, stores bytes written.
 type CmdOutput struct {
 	savedOutput []byte
-}
-
-// Collection of submission results. Includes an order array to indicate the order of items in the
-// internal map.
-type SubmissionResults struct {
-	results map[string]*SubmissionResult
-	order   []string
-}
-
-// Record of a student's submission, with metadata about how it ran and compiled.
-type SubmissionResult struct {
-	student        string
-	compileSuccess bool
-	runCorrect     bool
-	feedback           string
 }
 
 // Enum to contain the different types of directives that could be used in spec file
@@ -51,23 +41,19 @@ func (out *CmdOutput) Write(p []byte) (n int, err error) {
 	return 0, nil
 }
 
-// Crash if an error is present
-func throw(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
 // Load a file $fp into memory
 func getFile(fp string) string {
 	data, err := os.ReadFile(fp)
-	throw(err)
+	util.Throw(err)
 	return string(data)
 }
 
 // Evaluate a diff to see if they are equal
 func evaluateDiff(diff string) bool {
 	for _, line := range strings.Split(diff, "\n") {
+		if len(line) == 0 {
+			continue
+		}
 		if line[0] != ' ' {
 			return false
 		}
@@ -201,15 +187,15 @@ func btoa(b bool) string {
 }
 
 // Write a CSV report with information from $results to $outfile
-func createCsv(results SubmissionResults, outfile string) {
+func createCsv(results util.SubmissionResults, outfile string) {
 	file, err := os.Create(outfile)
-	throw(err)
+	util.Throw(err)
 
 	writer := csv.NewWriter(file)
 	writer.Write([]string{"student", "compiled", "ran correctly", "feedback"})
-	for _, id := range results.order {
-		result := results.results[id]
-		row := []string{result.student, btoa(result.compileSuccess), btoa(result.runCorrect), result.feedback}
+	for _, id := range results.Order {
+		result := results.Results[id]
+		row := []string{result.Student, btoa(result.CompileSuccess), btoa(result.RunCorrect), result.Feedback}
 		if err := writer.Write(row); err != nil {
 			log.Fatalln("error writing record to file", err)
 		}
@@ -236,7 +222,7 @@ func compile(dir, language string, wall bool) bool {
 			cmd = exec.Command("g++", compilePath...)
 		}
 	} else {
-		throw(err)
+		util.Throw(err)
 		fmt.Print("Compilation error, no language found")
 	}
 
@@ -261,7 +247,7 @@ func runCompiled(dir, args, language string, input []string) string {
 	cmd.Stdout = &stdout
 
 	stdin, err := cmd.StdinPipe()
-	throw(err)
+	util.Throw(err)
 
 	cmd.Start()
 
@@ -281,7 +267,7 @@ func runInterpreted(dir, args, language string, input []string) string {
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	stdin, err := cmd.StdinPipe()
-	throw(err)
+	util.Throw(err)
 
 	cmd.Start()
 	processInput(stdin, input)
@@ -316,13 +302,14 @@ func OSReadDir(root string) []string {
 }
 
 // Parse user input flags and return as strings.
-func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool) {
+func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool, isDryRun bool) {
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
 	flag.StringVar(&inFile, "in", "", "file to read interactive input from")
 	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
 	flag.StringVar(&language, "lang", "", "Language to be tested")
+	flag.BoolVar(&isDryRun, "dry-run", false, "skip upload to db")
 
 	flag.Parse()
 
@@ -340,22 +327,42 @@ func parseInFile(inFile string) (input []string) {
 }
 
 // Grade a single student's submission.
-func gradeSubmission(dir, workDir, runArgs, expected, language string, input []string, wall bool) (result SubmissionResult) {
-	result.student = dir
-	result.compileSuccess = compile(filepath.Join(workDir, dir), language, wall)
+func gradeSubmission(dir, workDir, runArgs, expected, language string, input []string, wall bool) (result util.SubmissionResult) {
+	result.Student = dir
+	result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
 
-	if result.compileSuccess {
+	if result.CompileSuccess {
 		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-		fmt.Print(stdout)
-
-		result.runCorrect, result.feedback = compare(expected, stdout)
+		result.RunCorrect, result.Feedback = compare(expected, stdout)
 	}
 
 	return result
 }
 
+func initSupabase() *supa.Client {
+	supabaseUrl := os.Getenv("SUPABASE_URL")
+	supabaseKey := os.Getenv("SUPABASE_KEY")
+	return supa.CreateClient(supabaseUrl, supabaseKey)
+}
+
+func writeFullOutputToDb(supabase *supa.Client, results util.SubmissionResults) {
+	for _, id := range results.Order {
+		result := results.Results[id]
+		db.SaveResult(supabase, result)
+	}
+}
+
 func main() {
-	workDir, runArgs, outFile, inFile, language, wall := parseFlags()
+
+	workDir, runArgs, outFile, inFile, language, wall, isDryRun := parseFlags()
+	if isDryRun {
+		fmt.Println("=== Dry run - output will not be uploaded to database ===")
+	}
+	godotenv.Load()
+
+	supabase := initSupabase()
+
+	fmt.Println("workdir: ", workDir)
 
 	cmd := exec.Command("ls")
 	cmd.Dir = workDir
@@ -368,54 +375,62 @@ func main() {
 	expected := getFile(workDir + "/.spec/out.txt")
 
 	fmt.Println("Expected Output: ", expected)
-	var results SubmissionResults
-	results.results = make(map[string]*SubmissionResult)
+	var results util.SubmissionResults
+	results.Results = make(map[string]*util.SubmissionResult)
+
 	
-	if language == "python3" || language == "python" || language == "javascript" || language == "js" {
-		for _, dir := range dirs {
+	for _, dir := range dirs {
+		
+		if language == "python3" || language == "python" || language == "javascript" || language == "js" {
+			var result util.SubmissionResult
+			results.Results[dir] = &result
+			results.Order = append(results.Order, dir)
 
-			var result SubmissionResult
-			results.results[dir] = &result
-			results.order = append(results.order, dir)
+			result.Student = dir
+		// find hydratedStudent information from EUID (dirname)
+			hydratedStudent := db.GetStudentByEuid(supabase, dir)
 
-			result.student = dir
-			result.compileSuccess = true	//because this is an interpreted langauage, we immediately set to true
+		// if student doesn't exist, commit to db
+			if hydratedStudent.Id == 0 {
+				hydratedStudent.Euid = dir
+				hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
 
-			if result.compileSuccess {
+				fmt.Printf("%8s: ", dir)
+				fmt.Printf("%+v\n", hydratedStudent)
+
+				if !isDryRun {
+					hydratedStudent.Save(supabase)
+				}
+				
+				result.StudentId = hydratedStudent.Id
+				result.AssignmentId = int8(1)
+
 				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
-				fmt.Printf("Output for %s: %s", result.student, stdout)
-				result.runCorrect, result.feedback = compare(expected, stdout)
+				fmt.Printf("Output for %s: %s", result.Student, stdout)
+				result.RunCorrect, result.Feedback = compare(expected, stdout)
 			}
-		}
-	} else if language == "java" || language == "c++" {
-		for _, dir := range dirs {
-			result := gradeSubmission(dir, workDir, runArgs, expected, language, input, wall)
-			results.results[dir] = &result
-			results.order = append(results.order, dir)
+		} else if language == "java" || language == "c++" {
+				result := gradeSubmission(dir, workDir, runArgs, expected, language, input, wall)
+				results.Results[dir] = &result
+				results.Order = append(results.Order, dir)
 
-			result.student = dir
-			result.compileSuccess = compile(filepath.Join(workDir, dir), language, wall)
-			if result.compileSuccess {
-				stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-				result.runCorrect, result.feedback = processOutput(expected, stdout)
-			}
-		}
-	} else {
+				// result.Student = dir
+				// result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
+				// if result.CompileSuccess {
+				// 	stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
+				// 	result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+				// }
+		} else {
 		fmt.Print("No language found")
-	}
-	for _, id := range results.order {
-		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
-	}
+		}
 
+		for _, id := range results.Order {
+			fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.Results[id].CompileSuccess, results.Results[id].RunCorrect)
+		}
+
+		if !isDryRun {
+		writeFullOutputToDb(supabase, results)
+		}
+	}
 	createCsv(results, outFile)
 }
-
-// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
-// files, err := ioutil.ReadDir(workDir)
-// if err != nil {
-// 	log.Fatal(err)
-// }
-
-// for _, file := range files {
-// 	fmt.Println(file.Name(), file.IsDir())
-// }
