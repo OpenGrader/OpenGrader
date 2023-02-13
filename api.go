@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+
 
 	"github.com/joho/godotenv"
 )
@@ -118,22 +120,41 @@ func Server() {
 				return
 			}
 
+			// Prepare request object to send files from form to bucket
+			bucketUrl := "https://kasxttiggmakvprevgrp.supabase.co/storage/v1/object/assignments/"
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
 				file, err := header.Open()
 				throw(err)
-				// Continue tomorrow
+				// Save locally
 				localFile, err := os.Create("./submissions/" + assignmentId + "/" + studentId + "/" + header.Filename)
 				throw(err)
 				io.Copy(localFile, file)
+
+				// Gather file bytes for bucket upload body
+				fileBytes, err := io.ReadAll(file)
+				throw(err)
+
+				bucketReq, err := http.NewRequest(
+					http.MethodPost, 
+					bucketUrl+studentId+"_"+header.Filename, 
+					bytes.NewReader(fileBytes),
+				)
+				throw(err)
+				bucketReq.Header.Add("apikey", supabaseKey)
+				bucketReq.Header.Add("Authorization", "Bearer "+supabaseKey)
+
+				// Send to bucket
+				storageResponse, err := client.Do(bucketReq)
+				throw(err)
+				if storageResponse.StatusCode != http.StatusOK {
+					fmt.Fprintf(w, "Failure to upload file to bucket")
+				}
 				file.Close()
 			}
 
 			// All pieces to forge the great weapon acquired. Assemble.
 			
-
-			// Send grade to
-
 
 			// Clean up
 
