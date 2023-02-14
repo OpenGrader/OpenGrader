@@ -127,8 +127,26 @@ func Server() {
 				return
 			}
 
-			// Prepare request object to send files from form to bucket
+			// Prepare request object to send files from form to bucket 
 			bucketUrl := "https://kasxttiggmakvprevgrp.supabase.co/storage/v1/object/assignments/"
+
+			// Create folder w assignment ID as folder name
+			folderReq, err := http.NewRequest(
+				http.MethodPost, 
+				bucketUrl+assignmentId+"?delimiter=%2f", 
+				nil,
+			)
+			throw(err)
+			folderReq.Header.Add("apikey", supabaseKey)
+			folderReq.Header.Add("Authorization", "Bearer "+supabaseKey)
+
+			folderResp, err := client.Do(folderReq)
+			throw(err)
+			if folderResp.StatusCode != http.StatusOK {
+				fmt.Println("Bad folder request")
+			}	
+			
+			bucketUrl = fmt.Sprintf("%s%s/", bucketUrl, assignmentId)
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
 				file, err := header.Open()
