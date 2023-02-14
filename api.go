@@ -182,6 +182,7 @@ func Server() {
 			}
 
 			// All pieces to forge the great weapon acquired. Assemble.
+			// Almost entirely copy and pasted from main(). Should refactor.
 			cmd := exec.Command("ls")
 			cmd.Dir = workDir
 			
@@ -227,20 +228,19 @@ func Server() {
 					resTable = resTable + fmt.Sprintf("Student %s feedback: \n%s\n", id, results.Results[id].Feedback)
 				}
 			}
-			// Clean up
+
+			// Clean up files and directories
 			for _, dir := range dirs {
 				err = os.RemoveAll(workDir+"/"+dir)
 				if err != nil {
 					log.Fatalf("Removal error: %v", err)
 				}
 			}
-
 			err = os.RemoveAll(workDir+"/.spec")
 			util.Throw(err)
 
 			// ALL DONE :D
-
-
+			// Write response table to user 
 			fmt.Fprint(w, resTable)
 
 		default:
