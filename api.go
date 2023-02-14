@@ -10,8 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+
 	"github.com/OpenGrader/OpenGrader/util"
+	"github.com/OpenGrader/OpenGrader/db"
+
 
 	"github.com/joho/godotenv"
 )
@@ -128,25 +132,8 @@ func Server() {
 			}
 
 			// Prepare request object to send files from form to bucket 
-			bucketUrl := "https://kasxttiggmakvprevgrp.supabase.co/storage/v1/object/assignments/"
+			bucketUrl := "https://kasxttiggmakvprevgrp.supabase.co/storage/v1/object/assignments/" + assignmentId + "/"
 
-			// Create folder w assignment ID as folder name
-			folderReq, err := http.NewRequest(
-				http.MethodPost, 
-				bucketUrl+assignmentId+"?delimiter=%2f", 
-				nil,
-			)
-			util.Throw(err)
-			folderReq.Header.Add("apikey", supabaseKey)
-			folderReq.Header.Add("Authorization", "Bearer "+supabaseKey)
-
-			folderResp, err := client.Do(folderReq)
-			util.Throw(err)
-			if folderResp.StatusCode != http.StatusOK {
-				fmt.Println("Bad folder request")
-			}	
-			
-			bucketUrl = fmt.Sprintf("%s%s/", bucketUrl, assignmentId)
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
 				file, err := header.Open()
@@ -175,7 +162,7 @@ func Server() {
 				storageResponse, err := client.Do(bucketReq)
 				util.Throw(err)
 				if storageResponse.StatusCode != http.StatusOK {
-					fmt.Fprintf(w, "Failure to upload file to bucket")
+					fmt.Println("Upload status code: ", storageResponse.StatusCode)
 				}
 
 				file.Close()
@@ -192,51 +179,62 @@ func Server() {
 			input := parseInFile(workDir+"/.spec/in.txt")
 			expected := getFile(workDir+"/.spec/out.txt")
 
+			supabase := initSupabase()
+			
+			intAssignmentId, err := strconv.Atoi(assignmentId)
+			util.Throw(err)
+
+
 			var results util.SubmissionResults
 			results.Results = make(map[string]*util.SubmissionResult)
 			resTable := ""
-			if queryResults[0].Language == "python3" || queryResults[0].Language == "python" {
-				for _, dir := range dirs {
-					var result util.SubmissionResult
-					results.Results[dir] = &result
-					results.Order = append(results.Order, dir)
+			for _, dir := range dirs {
+				var result util.SubmissionResult
+				results.Results[dir] = &result
+				results.Order = append(results.Order, dir)
 		
-					result.Student = dir
+				result.Student = dir
+				
+				intStudentId, err := strconv.Atoi(studentId)
+				util.Throw(err)
+				// find hydratedStudent information from EUID (dirname)
+				hydratedStudent := db.GetStudentById(supabase, int8(intStudentId))
+		
+				// if student doesn't exist, commit to db
+				if hydratedStudent.Id == 0 {
+					hydratedStudent.Euid = dir
+					hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
+		
+					fmt.Printf("%8s: ", dir)
+					fmt.Printf("%+v\n", hydratedStudent)
+					
+				}
+				result.StudentId = hydratedStudent.Id
+				result.AssignmentId = int8(intAssignmentId)
+		
+				if queryResults[0].Language == "python3" || queryResults[0].Language == "python" {
 					result.CompileSuccess = true
 		
-					if result.CompileSuccess {
-						stdout := runInterpreted(filepath.Join(workDir, dir), queryResults[0].Args, input)
-						fmt.Printf("Output for %s: %s", result.Student, stdout)
-						result.RunCorrect, result.Feedback = compare(expected, stdout)
-					}
-				}
-			} else {
-				for _, dir := range dirs {
-					var result util.SubmissionResult
-					results.Results[dir] = &result
-					results.Order = append(results.Order, dir)
-
-					result.Student = dir
+					stdout := runInterpreted(filepath.Join(workDir, dir), queryResults[0].Args, input)
+					fmt.Printf("Output for %s: %s", result.Student, stdout)
+					result.RunCorrect, result.Feedback = compare(expected, stdout)
+				} else {
 					result.CompileSuccess = compile(filepath.Join(workDir, dir), false)
 					if result.CompileSuccess {
 						stdout := runCompiled(filepath.Join(workDir, dir), queryResults[0].Args, input)
 						result.RunCorrect, result.Feedback = processOutput(expected, stdout)
 					}
 				}
-		
-				for _, id := range results.Order {
-					resTable = resTable + fmt.Sprintf("Student %s feedback: \n%s\n", id, results.Results[id].Feedback)
-				}
 			}
 
-			// Clean up files and directories
-			for _, dir := range dirs {
-				err = os.RemoveAll(workDir+"/"+dir)
-				if err != nil {
-					log.Fatalf("Removal error: %v", err)
-				}
+			for _, id := range results.Order {
+				resTable = resTable + fmt.Sprintf("Student %s feedback: \n%s\n", id, results.Results[id].Feedback)
 			}
-			err = os.RemoveAll(workDir+"/.spec")
+
+			writeFullOutputToDb(supabase, results)
+
+			// Clean up files and directories
+			err = os.RemoveAll(rootPathToDir+"/submissions")
 			util.Throw(err)
 
 			// ALL DONE :D
