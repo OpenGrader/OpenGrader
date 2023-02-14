@@ -177,7 +177,7 @@ func Server() {
 				if storageResponse.StatusCode != http.StatusOK {
 					fmt.Fprintf(w, "Failure to upload file to bucket")
 				}
-				fmt.Println(responseBodyToString(storageResponse))
+
 				file.Close()
 			}
 
@@ -249,12 +249,4 @@ func Server() {
 	})
 
 	log.Fatal(http.ListenAndServe(":4200", nil))
-}
-
-func responseBodyToString(res *http.Response) (s string, e error) {
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(body), nil
 }
