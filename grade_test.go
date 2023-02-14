@@ -2,8 +2,11 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -157,7 +160,7 @@ func TestCompile(t *testing.T) {
 	cpp := `#include <iostream>
 	int main() { std::cout << "Hello world!" << std::endl; }`
 
-	tmp, _ := os.CreateTemp("", "*.cpp")
+	tmp, _ := os.CreateTemp(".", "*.cpp")
 	// Removes the created temp file, this will always run
 	defer os.Remove(tmp.Name())
 
@@ -167,7 +170,7 @@ func TestCompile(t *testing.T) {
 	parts = parts[:len(parts)-1]
 
 	dir := strings.Join(parts, "/")
-
+	dir, _ = filepath.Abs(dir)
 	result := compile(dir, "c++", false)
 	if !result {
 		t.Error("Compile returned false, expected true.")
@@ -182,12 +185,13 @@ func TestCompile(t *testing.T) {
 
 func TestCompileWallSuccess(t *testing.T) {
 	cpp := `#include <iostream>
-	int main() { std::cout << "Hello world!" << std::endl; }`
+	int main() { std::cout << "Hello world!" << std::endl;
+	return 0; }`
 
 	tmp, _ := os.CreateTemp("", "*.cpp")
 	// Removes the created temp file, this will always run
 	defer os.Remove(tmp.Name())
-
+	
 	tmp.WriteString(cpp)
 
 	parts := strings.Split(tmp.Name(), "/")
@@ -195,17 +199,18 @@ func TestCompileWallSuccess(t *testing.T) {
 
 	dir := strings.Join(parts, "/")
 
-	result := compile(dir, "c++", true)
+	result := compile(dir,"language", true)
 	if !result {
 		t.Error("Compile returned false, expected true.")
 	}
-
+	
 	defer os.Remove(path.Join(dir, "a.out"))
-
+	
 	_, err := os.Open(path.Join(dir, "a.out"))
 	if err != nil {
 		t.Errorf("Failed to open the compiled file: [err=%e]", err)
 	}
+	fmt.Println(result)
 }
 func TestCompileWallFailure(t *testing.T) {
 	cpp := `int main() { int tst; tst += 1 }`
@@ -233,18 +238,22 @@ func TestCompileWallFailure(t *testing.T) {
 }
 
 func TestRunCompiled(t *testing.T) {
-	cpp := `#include <iostream>
-	int main() { std::cout << "Hello world!" << std::endl; }`
+	cpp := `
+	#include <iostream>
+	using namespace std;
+		int main(int argc, char** argv) {
+    	cout << "Hello, C Plus Plus!" << endl;
+    	return 0;
+	}
+	`
 
-	tmp, _ := os.CreateTemp("", "*.cpp")
+	tmp, _ := os.CreateTemp(".", "*.cpp")
 	// Removes the created temp file, this will always run
 	defer os.Remove(tmp.Name())
 
 	tmp.WriteString(cpp)
-
 	parts := strings.Split(tmp.Name(), "/")
 	parts = parts[:len(parts)-1]
-
 	dir := strings.Join(parts, "/")
 
 	result := compile(dir, "c++", true)
@@ -259,9 +268,28 @@ func TestRunCompiled(t *testing.T) {
 		t.Errorf("Failed to open the compiled file: [err=%e]", err)
 	}
 
-	expected := "Hello world!\n"
-	actual := runCompiled(dir, "", "c++", []string{})
+	expected := "Hello, C Plus Plus!\n"
+	actual := runCompiled(dir, tmp.Name(), "c++", []string{"Hello, C Plus Plus\n"})
 
+	if expected != actual {
+		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
+	}
+}
+
+func TestRunInterpreted(t *testing.T){
+	js := `console.log("Hello, World!");`
+	tmp, _ := os.CreateTemp("", "*.js")
+	// Removes the created temp file, this will always run
+	defer os.Remove(tmp.Name())
+	
+	tmp.WriteString(js)
+	parts := strings.Split(tmp.Name(), "/")
+	parts = parts[:len(parts)-1]
+	
+	dir := strings.Join(parts, "/")
+	expected := "Hello, World!\n"
+	actual := runInterpreted(dir, tmp.Name(), "javascript", []string{"Hello, World!"})
+	log.Println(actual)
 	if expected != actual {
 		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
 	}
@@ -318,7 +346,7 @@ func TestParseInFileWithInput(t *testing.T) {
 
 	actual := parseInFile(tmp.Name())
 	expected := []string{"test", "multiline ", "input", "for", "program", ""}
-
+	defer os.Remove(tmp.Name())
 	if len(expected) != len(actual) {
 		t.Fatalf("len(expected) != len(actual). Received %d, want %d", len(actual), len(expected))
 	}
@@ -349,7 +377,7 @@ func TestGradeSubmission(t *testing.T) {
 	os.Create(dir + "/main.cpp")
 	p := path.Join(workDir, dir, "main.cpp")
 	os.WriteFile(p, []byte(`#include <iostream>
-	int main() { std::cout << "Hello world!" << std::endl; }`), 0666)
+	int main() { std::cout << "Hello World!" << std::endl; }`), 0666)
 
 	if err != nil {
 		t.Fatalf("Failed to make temp dir %#v", err)
