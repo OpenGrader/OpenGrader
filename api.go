@@ -136,12 +136,12 @@ func Server() {
 				bucketUrl+assignmentId+"?delimiter=%2f", 
 				nil,
 			)
-			throw(err)
+			util.Throw(err)
 			folderReq.Header.Add("apikey", supabaseKey)
 			folderReq.Header.Add("Authorization", "Bearer "+supabaseKey)
 
 			folderResp, err := client.Do(folderReq)
-			throw(err)
+			util.Throw(err)
 			if folderResp.StatusCode != http.StatusOK {
 				fmt.Println("Bad folder request")
 			}	
