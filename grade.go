@@ -33,6 +33,7 @@ type SubmissionResult struct {
 	student        string
 	compileSuccess bool
 	runCorrect     bool
+	interpretSuccess bool	//might end up using later down the line
 	diff           string
 }
 
@@ -106,11 +107,9 @@ func compile(dir, language string, wall bool) bool {
 	var err error
 	var compilePath []string
 	var cmd *exec.Cmd
-
 	if language == "java" {
 		compilePath, err = filepath.Glob(dir + "/*.java")
 		cmd = exec.Command("javac", compilePath...)
-
 	} else if language == "c++" {
 		compilePath, err = filepath.Glob(dir + "/*.cpp")
 		if wall {
@@ -126,8 +125,7 @@ func compile(dir, language string, wall bool) bool {
 
 	cmd.Dir = dir
 	compileErr := cmd.Run()
-
-	// test if exit 0
+	// test if exit 0, aka successful compilation
 	return compileErr == nil
 }
 
@@ -158,10 +156,9 @@ func runCompiled(dir, args, language string, input []string) string {
 func runInterpreted(dir, args, language string, input []string) string {
 	var stdout CmdOutput
 	var cmd *exec.Cmd
-
 	if language == "js" || language == "javascript" {
 		cmd = exec.Command("node", strings.Fields(args)...)
-	} else {
+	} else if language == "python" || language == "python3" {
 		cmd = exec.Command(language, strings.Fields(args)...) // ex: python3 main.py arg1 arg2 ... argN
 	}
 	cmd.Dir = dir
@@ -172,7 +169,6 @@ func runInterpreted(dir, args, language string, input []string) string {
 	cmd.Start()
 	processInput(stdin, input)
 	cmd.Wait()
-
 	return string(stdout.savedOutput)
 }
 
@@ -233,12 +229,11 @@ func gradeSubmission(dir, workDir, runArgs, expected, language string, input []s
 
 	if result.compileSuccess {
 		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-		fmt.Print(stdout)
-
+		fmt.Printf("Output for %s: %s", result.student, stdout)
 		result.runCorrect, result.diff = compare(expected, stdout)
 	}
 
-	return
+	return result
 }
 
 func main() {
@@ -254,20 +249,19 @@ func main() {
 
 	expected := getFile(workDir + "/.spec/out.txt")
 
-	fmt.Println("\nExpected output: ", expected)
-	fmt.Print("\n")
-
+	fmt.Println("Expected Output: ", expected)
 	var results SubmissionResults
 	results.results = make(map[string]*SubmissionResult)
-
+	
 	if language == "python3" || language == "python" || language == "javascript" || language == "js" {
 		for _, dir := range dirs {
+
 			var result SubmissionResult
 			results.results[dir] = &result
 			results.order = append(results.order, dir)
 
 			result.student = dir
-			result.compileSuccess = true
+			result.compileSuccess = true	//because this is an interpreted langauage, we immediately set to true
 
 			if result.compileSuccess {
 				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
@@ -284,7 +278,6 @@ func main() {
 	} else {
 		fmt.Print("No language found")
 	}
-	fmt.Print("\n")
 	for _, id := range results.order {
 		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.results[id].compileSuccess, results.results[id].runCorrect)
 	}
