@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"github.com/OpenGrader/OpenGrader/util"
 
 	"github.com/joho/godotenv"
@@ -92,23 +95,26 @@ func Server() {
 			util.Throw(err)
 
 			// Prepare local directory
-			err = os.MkdirAll("./submissions/"+assignmentId+"/.spec/", 0766)
+			rootPathToDir, err := os.Getwd()
+			util.Throw(err)
+			workDir := rootPathToDir + "/submissions/"+assignmentId
+			err = os.MkdirAll(workDir+"/.spec/", 0766)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
-			err = os.MkdirAll("./submissions/"+assignmentId+"/"+studentId+"/", 0766)
+			err = os.MkdirAll(workDir+"/"+studentId+"/", 0766)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
 			// Create local spec files
-			err = os.WriteFile("./submissions/"+assignmentId+"/.spec/in.txt", inFileByteContent, 0666)
+			err = os.WriteFile(workDir+"/.spec/in.txt", inFileByteContent, 0666)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
-			err = os.WriteFile("./submissions/"+assignmentId+"/.spec/out.txt", outFileByteContent, 0666)
+			err = os.WriteFile(workDir+"/.spec/out.txt", outFileByteContent, 0666)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
@@ -137,7 +143,7 @@ func Server() {
 				file.Seek(0, io.SeekStart)
 				fileBytes, err := io.ReadAll(file)
 				util.Throw(err)
-				fmt.Println(fileBytes)
+
 				bucketReq, err := http.NewRequest(
 					http.MethodPost, 
 					bucketUrl+studentId+"_"+header.Filename, 
@@ -158,11 +164,66 @@ func Server() {
 			}
 
 			// All pieces to forge the great weapon acquired. Assemble.
+			cmd := exec.Command("ls")
+			cmd.Dir = workDir
 			
+			out, _ := cmd.Output()
+			dirs := strings.Fields(string(out[:])) 
 
+			input := parseInFile(workDir+"/.spec/in.txt")
+			expected := getFile(workDir+"/.spec/out.txt")
+
+			var results util.SubmissionResults
+			results.Results = make(map[string]*util.SubmissionResult)
+			resTable := ""
+			if queryResults[0].Language == "python3" || queryResults[0].Language == "python" {
+				for _, dir := range dirs {
+					var result util.SubmissionResult
+					results.Results[dir] = &result
+					results.Order = append(results.Order, dir)
+		
+					result.Student = dir
+					result.CompileSuccess = true
+		
+					if result.CompileSuccess {
+						stdout := runInterpreted(filepath.Join(workDir, dir), queryResults[0].Args, input)
+						fmt.Printf("Output for %s: %s", result.Student, stdout)
+						result.RunCorrect, result.Feedback = compare(expected, stdout)
+					}
+				}
+			} else {
+				for _, dir := range dirs {
+					var result util.SubmissionResult
+					results.Results[dir] = &result
+					results.Order = append(results.Order, dir)
+
+					result.Student = dir
+					result.CompileSuccess = compile(filepath.Join(workDir, dir), false)
+					if result.CompileSuccess {
+						stdout := runCompiled(filepath.Join(workDir, dir), queryResults[0].Args, input)
+						result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+					}
+				}
+		
+				for _, id := range results.Order {
+					resTable = resTable + fmt.Sprintf("Student %s feedback: \n%s\n", id, results.Results[id].Feedback)
+				}
+			}
 			// Clean up
+			for _, dir := range dirs {
+				err = os.RemoveAll(workDir+"/"+dir)
+				if err != nil {
+					log.Fatalf("Removal error: %v", err)
+				}
+			}
 
-			fmt.Fprint(w, "Still POSTed up! o7")
+			err = os.RemoveAll(workDir+"/.spec")
+			util.Throw(err)
+
+			// ALL DONE :D
+
+
+			fmt.Fprint(w, resTable)
 
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
