@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -91,23 +94,26 @@ func Server() {
 			throw(err)
 
 			// Prepare local directory
-			err = os.MkdirAll("./submissions/"+assignmentId+"/.spec/", 0766)
+			rootPathToDir, err := os.Getwd()
+			throw(err)
+			workDir := rootPathToDir + "/submissions/"+assignmentId
+			err = os.MkdirAll(workDir+"/.spec/", 0766)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
-			err = os.MkdirAll("./submissions/"+assignmentId+"/"+studentId+"/", 0766)
+			err = os.MkdirAll(workDir+"/"+studentId+"/", 0766)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
 			// Create local spec files
-			err = os.WriteFile("./submissions/"+assignmentId+"/.spec/in.txt", inFileByteContent, 0666)
+			err = os.WriteFile(workDir+"/.spec/in.txt", inFileByteContent, 0666)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
-			err = os.WriteFile("./submissions/"+assignmentId+"/.spec/out.txt", outFileByteContent, 0666)
+			err = os.WriteFile(workDir+"/.spec/out.txt", outFileByteContent, 0666)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
@@ -136,7 +142,6 @@ func Server() {
 				file.Seek(0, io.SeekStart)
 				fileBytes, err := io.ReadAll(file)
 				throw(err)
-				fmt.Println(fileBytes)
 				bucketReq, err := http.NewRequest(
 					http.MethodPost, 
 					bucketUrl+studentId+"_"+header.Filename, 
@@ -157,11 +162,66 @@ func Server() {
 			}
 
 			// All pieces to forge the great weapon acquired. Assemble.
+			cmd := exec.Command("ls")
+			cmd.Dir = workDir
 			
+			out, _ := cmd.Output()
+			dirs := strings.Fields(string(out[:])) 
 
+			input := parseInFile(workDir+"/.spec/in.txt")
+			expected := getFile(workDir+"/.spec/out.txt")
+
+			var results SubmissionResults
+			results.results = make(map[string]*SubmissionResult)
+			resTable := ""
+			if queryResults[0].Language == "python3" || queryResults[0].Language == "python" {
+				for _, dir := range dirs {
+					var result SubmissionResult
+					results.results[dir] = &result
+					results.order = append(results.order, dir)
+		
+					result.student = dir
+					result.compileSuccess = true
+		
+					if result.compileSuccess {
+						stdout := runInterpreted(filepath.Join(workDir, dir), queryResults[0].Args, input)
+						fmt.Printf("Output for %s: %s", result.student, stdout)
+						result.runCorrect, result.feedback = compare(expected, stdout)
+					}
+				}
+			} else {
+				for _, dir := range dirs {
+					var result SubmissionResult
+					results.results[dir] = &result
+					results.order = append(results.order, dir)
+
+					result.student = dir
+					result.compileSuccess = compile(filepath.Join(workDir, dir), false)
+					if result.compileSuccess {
+						stdout := runCompiled(filepath.Join(workDir, dir), queryResults[0].Args, input)
+						result.runCorrect, result.feedback = processOutput(expected, stdout)
+					}
+				}
+		
+				for _, id := range results.order {
+					resTable = resTable + fmt.Sprintf("Student %s feedback: \n%s\n", id, results.results[id].feedback)
+				}
+			}
 			// Clean up
+			for _, dir := range dirs {
+				err = os.RemoveAll(workDir+"/"+dir)
+				if err != nil {
+					log.Fatalf("Removal error: %v", err)
+				}
+			}
 
-			fmt.Fprint(w, "Still POSTed up! o7")
+			err = os.RemoveAll(workDir+"/.spec")
+			throw(err)
+
+			// ALL DONE :D
+
+
+			fmt.Fprint(w, resTable)
 
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
