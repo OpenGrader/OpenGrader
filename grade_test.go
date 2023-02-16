@@ -384,7 +384,7 @@ func TestGradeSubmission(t *testing.T) {
 	os.Create(dir + "/main.cpp")
 	p := path.Join(workDir, dir, "main.cpp")
 	os.WriteFile(p, []byte(`#include <iostream>
-	int main() { std::cout << "Hello World!" << std::endl; }`), 0666)
+	int main() { std::cout << "Hello World!"; return 0;}`), 0666)
 
 	if err != nil {
 		t.Fatalf("Failed to make temp dir %#v", err)
@@ -404,7 +404,7 @@ func TestGradeSubmission(t *testing.T) {
 		t.Fatalf("Compile error")
 	}
 
-	if result.Feedback != " Hello world!" {
+	if result.Feedback != " Hello World!" {
 		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, " Hello World!")
 	}
 

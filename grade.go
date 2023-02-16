@@ -65,7 +65,6 @@ func evaluateDiff(diff string) bool {
 // Diff two strings
 func compare(expected, actual string) (bool, string) {
 	d := diff.LineDiff(strings.TrimSpace(expected), strings.TrimSpace(actual))
-
 	return evaluateDiff(d), d
 }
 
@@ -334,8 +333,8 @@ func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expec
 		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
 		fmt.Printf("Output for %s: %s", result.Student, stdout)
 		result.RunCorrect, result.Feedback = compare(expected, stdout)
+		log.Print("FEEDBACK:", result.Feedback)
 	}
-	return
 }
 
 func initSupabase() *supa.Client {
