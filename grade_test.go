@@ -200,8 +200,7 @@ func TestCompileWallSuccess(t *testing.T) {
 	parts = parts[:len(parts)-1]
 
 	dir := strings.Join(parts, "/")
-
-	result := compile(dir,"language", true)
+	result := compile(dir, "c++", true)
 	if !result {
 		t.Error("Compile returned false, expected true.")
 	}
@@ -258,7 +257,7 @@ func TestRunCompiled(t *testing.T) {
 	parts = parts[:len(parts)-1]
 	dir := strings.Join(parts, "/")
 
-	result := compile(dir, "c++", true)
+	result := compile(dir, "c++", false)
 	if !result {
 		t.Error("Compile returned false, expected true.")
 	}
@@ -393,26 +392,27 @@ func TestGradeSubmission(t *testing.T) {
 
 	// run and validate
 	runArgs := ""
-	expected := "Hello world!"
+	expected := "Hello World!"
 	language := "c++"
 	input := []string{}
 	wall := false
+	result := util.SubmissionResult{Student: "jgg0144", CompileSuccess: false, RunCorrect: false, Feedback: "", AssignmentId: 1, StudentId: 1}
 
-	actual := gradeSubmission(dir, workDir, runArgs, expected, language, input, wall)
+	gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
 
-	if !actual.CompileSuccess {
+	if !result.CompileSuccess {
 		t.Fatalf("Compile error")
 	}
 
-	if actual.Feedback != " Hello world!" {
-		t.Errorf("actual.diff mismatch, received %#v, want %#v", actual.Feedback, " Hello world!")
+	if result.Feedback != " Hello world!" {
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, " Hello world!")
 	}
 
-	if !actual.RunCorrect {
+	if !result.RunCorrect {
 		t.Errorf("actual.runCorrect is false, want true")
 	}
 
-	if actual.Student != dir {
-		t.Errorf("actual.student mismatch, received %#v, want %#v", actual.Student, dir)
+	if result.Student != dir {
+		t.Errorf("actual.student mismatch, received %#v, want %#v", result.Student, dir)
 	}
 }

@@ -237,7 +237,7 @@ func runCompiled(dir, args, language string, input []string) string {
 	var stdout CmdOutput
 	var cmd *exec.Cmd
 	var err error
-
+	
 	if language == "java" {
 		cmd = exec.Command("java", strings.Fields(args)...)
 	} else if language == "c++" {
@@ -310,7 +310,6 @@ func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool
 	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
 	flag.StringVar(&language, "lang", "", "Language to be tested")
 	flag.BoolVar(&isDryRun, "dry-run", false, "skip upload to db")
-
 	flag.Parse()
 
 	return
@@ -327,16 +326,16 @@ func parseInFile(inFile string) (input []string) {
 }
 
 // Grade a single student's submission.
-func gradeSubmission(dir, workDir, runArgs, expected, language string, input []string, wall bool) (result util.SubmissionResult) {
+func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool) {
 	result.Student = dir
 	result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
 
 	if result.CompileSuccess {
 		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
+		fmt.Printf("Output for %s: %s", result.Student, stdout)
 		result.RunCorrect, result.Feedback = compare(expected, stdout)
 	}
-
-	return result
+	return
 }
 
 func initSupabase() *supa.Client {
@@ -373,64 +372,56 @@ func main() {
 	input := parseInFile(inFile)
 
 	expected := getFile(workDir + "/.spec/out.txt")
-
 	fmt.Println("Expected Output: ", expected)
+
 	var results util.SubmissionResults
 	results.Results = make(map[string]*util.SubmissionResult)
 
-	
 	for _, dir := range dirs {
+		var result util.SubmissionResult
+		results.Results[dir] = &result
+		results.Order = append(results.Order, dir)
+		result.Student = dir
+		// find hydratedStudent information from EUID (dirname)
+		hydratedStudent := db.GetStudentByEuid(supabase, dir)
+
+		if hydratedStudent.Id == 0 {
+			hydratedStudent.Euid = dir
+			hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
+
+			fmt.Printf("%8s: ", dir)
+			fmt.Printf("%+v\n", hydratedStudent)
+
+			if !isDryRun {
+				hydratedStudent.Save(supabase)
+			}
+		}
+
+		result.StudentId = hydratedStudent.Id
+		result.AssignmentId = int8(1)
 		
 		if language == "python3" || language == "python" || language == "javascript" || language == "js" {
-			var result util.SubmissionResult
-			results.Results[dir] = &result
-			results.Order = append(results.Order, dir)
-
-			result.Student = dir
-		// find hydratedStudent information from EUID (dirname)
-			hydratedStudent := db.GetStudentByEuid(supabase, dir)
-
+			result.CompileSuccess = true
+	
+			stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
+			fmt.Printf("Output for %s: %s", result.Student, stdout)
+			result.RunCorrect, result.Feedback = compare(expected, stdout)
+			
 		// if student doesn't exist, commit to db
-			if hydratedStudent.Id == 0 {
-				hydratedStudent.Euid = dir
-				hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
-
-				fmt.Printf("%8s: ", dir)
-				fmt.Printf("%+v\n", hydratedStudent)
-
-				if !isDryRun {
-					hydratedStudent.Save(supabase)
-				}
-				
-				result.StudentId = hydratedStudent.Id
-				result.AssignmentId = int8(1)
-
-				stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
-				fmt.Printf("Output for %s: %s", result.Student, stdout)
-				result.RunCorrect, result.Feedback = compare(expected, stdout)
-			}
 		} else if language == "java" || language == "c++" {
-				result := gradeSubmission(dir, workDir, runArgs, expected, language, input, wall)
-				results.Results[dir] = &result
-				results.Order = append(results.Order, dir)
-
-				// result.Student = dir
-				// result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
-				// if result.CompileSuccess {
-				// 	stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-				// 	result.RunCorrect, result.Feedback = processOutput(expected, stdout)
-				// }
+				gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
 		} else {
 		fmt.Print("No language found")
 		}
 
-		for _, id := range results.Order {
-			fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.Results[id].CompileSuccess, results.Results[id].RunCorrect)
-		}
+		fmt.Println("RESULT: ", result)
 
-		if !isDryRun {
+	}
+	for _, id := range results.Order {
+		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t] \n", id, results.Results[id].CompileSuccess, results.Results[id].RunCorrect)
+	}
+	if !isDryRun {
 		writeFullOutputToDb(supabase, results)
-		}
 	}
 	createCsv(results, outFile)
 }
