@@ -315,10 +315,11 @@ func TestParseFlags(t *testing.T) {
 	expectedInFile := "my-infile"
 	expectedWall := false
 	expectedDryRun := false
+	expectedServer := false
 
 	os.Args = []string{"test", "--out", expectedOutFile, "--in", expectedInFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs}
 
-	workDir, runArgs, outFile, inFile, _, wall, isDryRun := parseFlags()
+	workDir, runArgs, outFile, inFile, _, wall, isDryRun, server := parseFlags()
 
 	if workDir != expectedWorkDir {
 		t.Errorf("Mismatched workDir [expected=%#v] [actual=%#v]", expectedWorkDir, workDir)
@@ -342,6 +343,10 @@ func TestParseFlags(t *testing.T) {
 
 	if isDryRun != expectedDryRun {
 		t.Errorf("Mismatched isDryRun [expected=%#v] [actual=%#v]", expectedDryRun, isDryRun)
+	}
+
+	if server != expectedServer {
+		t.Errorf("Mismatched server [expected=%#v] [actual=%#v]", expectedServer, server)
 	}
 }
 

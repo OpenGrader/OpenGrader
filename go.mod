@@ -13,4 +13,5 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/nedpals/postgrest-go v0.1.3 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

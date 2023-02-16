@@ -5,3 +5,4 @@ OpenGrader
 code
 submissions
 *.code-workspace
+.env

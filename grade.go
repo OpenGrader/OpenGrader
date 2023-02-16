@@ -301,7 +301,7 @@ func OSReadDir(root string) []string {
 }
 
 // Parse user input flags and return as strings.
-func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool, isDryRun bool) {
+func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool, isDryRun bool, server bool) {
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
@@ -309,6 +309,8 @@ func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool
 	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
 	flag.StringVar(&language, "lang", "", "Language to be tested")
 	flag.BoolVar(&isDryRun, "dry-run", false, "skip upload to db")
+	flag.BoolVar(&server, "server", false, "Run OpenGrader server instead of engine")
+
 	flag.Parse()
 
 	return
@@ -333,7 +335,6 @@ func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expec
 		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
 		fmt.Printf("Output for %s: %s", result.Student, stdout)
 		result.RunCorrect, result.Feedback = compare(expected, stdout)
-		log.Print("FEEDBACK:", result.Feedback)
 	}
 }
 
@@ -351,8 +352,13 @@ func writeFullOutputToDb(supabase *supa.Client, results util.SubmissionResults) 
 }
 
 func main() {
+	workDir, runArgs, outFile, inFile, language, wall, isDryRun, server := parseFlags()
+	if server {
+		fmt.Println("=== API Started ===")
+		Server()
+		return
+	}
 
-	workDir, runArgs, outFile, inFile, language, wall, isDryRun := parseFlags()
 	if isDryRun {
 		fmt.Println("=== Dry run - output will not be uploaded to database ===")
 	}
@@ -412,8 +418,6 @@ func main() {
 		} else {
 		fmt.Print("No language found")
 		}
-
-		fmt.Println("RESULT: ", result)
 
 	}
 	for _, id := range results.Order {
