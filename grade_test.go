@@ -405,7 +405,7 @@ func TestGradeSubmission(t *testing.T) {
 	}
 
 	if result.Feedback != " Hello world!" {
-		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, " Hello world!")
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, " Hello World!")
 	}
 
 	if !result.RunCorrect {
