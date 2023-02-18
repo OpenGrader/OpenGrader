@@ -364,10 +364,10 @@ func main() {
 
 	// determine which assignment id to use, flag takes precedence over file
 	if passedAssignmentId == 0 {
-		if ogInfo.AssignmentId != 0 {
-			assignmentId = ogInfo.AssignmentId
-		} else {
+		if ogInfo.AssignmentId == 0 {
 			assignmentId = 1
+		} else {
+			assignmentId = ogInfo.AssignmentId
 		}
 	} else {
 		assignmentId = int8(passedAssignmentId)
