@@ -46,10 +46,10 @@ func TestGetFile(t *testing.T) {
 	expected := "writing a string to test\nand another line of stuff\n"
 	tmpFile.WriteString(expected)
 
-	actual := getFile(tmpFile.Name())
+	actual := util.GetFile(tmpFile.Name())
 
 	if actual != expected {
-		t.Errorf("String returned by getFile did not match input string. [expected=%s] [actual=%s]", expected, actual)
+		t.Errorf("String returned by util.GetFile did not match input string. [expected=%s] [actual=%s]", expected, actual)
 	}
 
 	os.Remove(tmpFile.Name())
@@ -148,7 +148,7 @@ bbb0002,true,true,<diff2>
 ccc0003,false,false,<diff3>
 `
 
-	if actual := getFile(tmp.Name()); actual != expected {
+	if actual := util.GetFile(tmp.Name()); actual != expected {
 		t.Error("Output of createCsv does not match expected.")
 		t.Errorf("Expected\n========\n%s\n========\n\n", expected)
 		t.Errorf("Actual\n======\n%s\n======", actual)
