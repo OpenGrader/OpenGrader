@@ -412,6 +412,8 @@ func main() {
 			if result.CompileSuccess {
 				stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
 				result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+			} else {
+				result.Feedback = "Failed to compile."
 			}
 		}
 	}
