@@ -236,7 +236,7 @@ func runCompiled(dir, args, language string, input []string) string {
 	var stdout CmdOutput
 	var cmd *exec.Cmd
 	var err error
-	
+
 	if language == "java" {
 		cmd = exec.Command("java", strings.Fields(args)...)
 	} else if language == "c++" {
@@ -404,19 +404,19 @@ func main() {
 
 		result.StudentId = hydratedStudent.Id
 		result.AssignmentId = int8(1)
-		
+
 		if language == "python3" || language == "python" || language == "javascript" || language == "js" {
 			result.CompileSuccess = true
-	
+
 			stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
 			fmt.Printf("Output for %s: %s", result.Student, stdout)
 			result.RunCorrect, result.Feedback = compare(expected, stdout)
-			
-		// if student doesn't exist, commit to db
+
+			// if student doesn't exist, commit to db
 		} else if language == "java" || language == "c++" {
-				gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
+			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
 		} else {
-		fmt.Print("No language found")
+			fmt.Print("No language found")
 		}
 
 	}

@@ -193,7 +193,7 @@ func TestCompileWallSuccess(t *testing.T) {
 	tmp, _ := os.CreateTemp("", "*.cpp")
 	// Removes the created temp file, this will always run
 	defer os.Remove(tmp.Name())
-	
+
 	tmp.WriteString(cpp)
 
 	parts := strings.Split(tmp.Name(), "/")
@@ -204,9 +204,9 @@ func TestCompileWallSuccess(t *testing.T) {
 	if !result {
 		t.Error("Compile returned false, expected true.")
 	}
-	
+
 	defer os.Remove(path.Join(dir, "a.out"))
-	
+
 	_, err := os.Open(path.Join(dir, "a.out"))
 	if err != nil {
 		t.Errorf("Failed to open the compiled file: [err=%e]", err)
@@ -277,16 +277,16 @@ func TestRunCompiled(t *testing.T) {
 	}
 }
 
-func TestRunInterpreted(t *testing.T){
+func TestRunInterpreted(t *testing.T) {
 	js := `console.log("Hello, World!");`
 	tmp, _ := os.CreateTemp("", "*.js")
 	// Removes the created temp file, this will always run
 	defer os.Remove(tmp.Name())
-	
+
 	tmp.WriteString(js)
 	parts := strings.Split(tmp.Name(), "/")
 	parts = parts[:len(parts)-1]
-	
+
 	dir := strings.Join(parts, "/")
 	expected := "Hello, World!\n"
 	actual := runInterpreted(dir, tmp.Name(), "javascript", []string{"Hello, World!"})
