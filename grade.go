@@ -41,13 +41,6 @@ func (out *CmdOutput) Write(p []byte) (n int, err error) {
 	return 0, nil
 }
 
-// Load a file $fp into memory
-func getFile(fp string) string {
-	data, err := os.ReadFile(fp)
-	util.Throw(err)
-	return string(data)
-}
-
 // Evaluate a diff to see if they are equal
 func evaluateDiff(diff string) bool {
 	for _, line := range strings.Split(diff, "\n") {
@@ -301,7 +294,7 @@ func OSReadDir(root string) []string {
 }
 
 // Parse user input flags and return as strings.
-func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool, isDryRun bool, server bool) {
+func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool, isDryRun bool, server bool, assignmentId int) {
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
@@ -310,6 +303,7 @@ func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool
 	flag.StringVar(&language, "lang", "", "Language to be tested")
 	flag.BoolVar(&isDryRun, "dry-run", false, "skip upload to db")
 	flag.BoolVar(&server, "server", false, "Run OpenGrader server instead of engine")
+	flag.IntVar(&assignmentId, "assignment-id", 0, "Assignment ID to use, defaults to using oginfo.json")
 
 	flag.Parse()
 
@@ -319,7 +313,7 @@ func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool
 // Generate a list of strings, each a line of user input.
 func parseInFile(inFile string) (input []string) {
 	if inFile != "" {
-		input = strings.Split(getFile(inFile), "\n")
+		input = strings.Split(util.GetFile(inFile), "\n")
 	} else {
 		input = []string{}
 	}
@@ -352,7 +346,7 @@ func writeFullOutputToDb(supabase *supa.Client, results util.SubmissionResults) 
 }
 
 func main() {
-	workDir, runArgs, outFile, inFile, language, wall, isDryRun, server := parseFlags()
+	workDir, runArgs, outFile, inFile, language, wall, isDryRun, server, passedAssignmentId := parseFlags()
 	if server {
 		fmt.Println("=== API Started ===")
 		Server()
@@ -376,8 +370,22 @@ func main() {
 
 	input := parseInFile(inFile)
 
-	expected := getFile(workDir + "/.spec/out.txt")
-	fmt.Println("Expected Output: ", expected)
+	expected := util.GetFile(workDir + "/.spec/out.txt")
+	fmt.Println(expected)
+
+	ogInfo := util.ParseOgInfo(workDir + "/.spec/oginfo.json")
+	var assignmentId int8
+
+	// determine which assignment id to use, flag takes precedence over file
+	if passedAssignmentId == 0 {
+		if ogInfo.AssignmentId == 0 {
+			assignmentId = 1
+		} else {
+			assignmentId = ogInfo.AssignmentId
+		}
+	} else {
+		assignmentId = int8(passedAssignmentId)
+	}
 
 	var results util.SubmissionResults
 	results.Results = make(map[string]*util.SubmissionResult)
@@ -387,6 +395,7 @@ func main() {
 		results.Results[dir] = &result
 		results.Order = append(results.Order, dir)
 		result.Student = dir
+		result.AssignmentId = assignmentId
 		// find hydratedStudent information from EUID (dirname)
 		hydratedStudent := db.GetStudentByEuid(supabase, dir)
 
@@ -403,7 +412,6 @@ func main() {
 		}
 
 		result.StudentId = hydratedStudent.Id
-		result.AssignmentId = int8(1)
 
 		if language == "python3" || language == "python" || language == "javascript" || language == "js" {
 			result.CompileSuccess = true

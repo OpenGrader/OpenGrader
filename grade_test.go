@@ -49,10 +49,10 @@ func TestGetFile(t *testing.T) {
 	expected := "writing a string to test\nand another line of stuff\n"
 	tmpFile.WriteString(expected)
 
-	actual := getFile(tmpFile.Name())
+	actual := util.GetFile(tmpFile.Name())
 
 	if actual != expected {
-		t.Errorf("String returned by getFile did not match input string. [expected=%s] [actual=%s]", expected, actual)
+		t.Errorf("String returned by util.GetFile did not match input string. [expected=%s] [actual=%s]", expected, actual)
 	}
 
 	os.Remove(tmpFile.Name())
@@ -151,7 +151,7 @@ bbb0002,true,true,<diff2>
 ccc0003,false,false,<diff3>
 `
 
-	if actual := getFile(tmp.Name()); actual != expected {
+	if actual := util.GetFile(tmp.Name()); actual != expected {
 		t.Error("Output of createCsv does not match expected.")
 		t.Errorf("Expected\n========\n%s\n========\n\n", expected)
 		t.Errorf("Actual\n======\n%s\n======", actual)
@@ -316,10 +316,11 @@ func TestParseFlags(t *testing.T) {
 	expectedWall := false
 	expectedDryRun := false
 	expectedServer := false
+	expectedAssignmentId := 93
 
-	os.Args = []string{"test", "--out", expectedOutFile, "--in", expectedInFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs}
+	os.Args = []string{"test", "--out", expectedOutFile, "--in", expectedInFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs, "--assignment-id", fmt.Sprint(expectedAssignmentId)}
 
-	workDir, runArgs, outFile, inFile, _, wall, isDryRun, server := parseFlags()
+	workDir, runArgs, outFile, inFile, _, wall, isDryRun, server, assignmentId := parseFlags()
 
 	if workDir != expectedWorkDir {
 		t.Errorf("Mismatched workDir [expected=%#v] [actual=%#v]", expectedWorkDir, workDir)
@@ -347,6 +348,10 @@ func TestParseFlags(t *testing.T) {
 
 	if server != expectedServer {
 		t.Errorf("Mismatched server [expected=%#v] [actual=%#v]", expectedServer, server)
+	}
+
+	if assignmentId != expectedAssignmentId {
+		t.Errorf("Mismatched assignmentId [expected=%#v] [actual=%#v]", expectedAssignmentId, assignmentId)
 	}
 }
 

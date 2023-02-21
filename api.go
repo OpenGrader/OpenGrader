@@ -172,7 +172,7 @@ func Server() {
 			dirs := strings.Fields(string(out[:]))
 
 			input := parseInFile(workDir + "/.spec/in.txt")
-			expected := getFile(workDir + "/.spec/out.txt")
+			expected := util.GetFile(workDir + "/.spec/out.txt")
 
 			supabase := initSupabase()
 
