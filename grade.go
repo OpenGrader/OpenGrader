@@ -335,7 +335,7 @@ func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expec
 	if result.CompileSuccess {
 		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
 		fmt.Printf("Output for %s: %s", result.Student, stdout)
-		result.RunCorrect, result.Feedback = compare(expected, stdout)
+		result.RunCorrect, result.Feedback = processOutput(expected, stdout)
 	}
 }
 
@@ -425,7 +425,7 @@ func main() {
 
 			stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
 			fmt.Printf("Output for %s: %s", result.Student, stdout)
-			result.RunCorrect, result.Feedback = compare(expected, stdout)
+			result.RunCorrect, result.Feedback = processOutput(expected, stdout)
 
 			// if student doesn't exist, commit to db
 		} else if language == "java" || language == "c++" {
