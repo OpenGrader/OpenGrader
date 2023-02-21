@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/andreyvit/diff"
@@ -229,11 +230,17 @@ func runCompiled(dir, args, language string, input []string) string {
 	var stdout CmdOutput
 	var cmd *exec.Cmd
 	var err error
-
+	os := runtime.GOOS
 	if language == "java" {
 		cmd = exec.Command("java", strings.Fields(args)...)
 	} else if language == "c++" {
-		cmd = exec.Command("./a.out", strings.Fields(args)...) // my computer uses a.exe, but this was originally a.out, in case it doesn't work for u, we are working on not hard coding it
+		if os == "windows" {
+			cmd = exec.Command(".\a.exe", strings.Fields(args)...)
+		} else if os == "linux" {
+			cmd = exec.Command("./a.out", strings.Fields(args)...)
+		} else {
+			panic("Error: OS is not compatible.")
+		}
 	}
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
@@ -241,7 +248,7 @@ func runCompiled(dir, args, language string, input []string) string {
 	stdin, err := cmd.StdinPipe()
 	util.Throw(err)
 
-	cmd.Start()
+	cmd.Start()	
 
 	processInput(stdin, input)
 	cmd.Wait()
