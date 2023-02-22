@@ -162,7 +162,7 @@ func TestCompile(t *testing.T) {
 	cpp := `#include <iostream>
 	int main() { std::cout << "Hello world!" << std::endl; }`
 
-	tmp, _ := os.CreateTemp(".", "*.cpp")
+	tmp, _ := os.CreateTemp("", "*.cpp")
 	// Removes the created temp file, this will always run
 	defer os.Remove(tmp.Name())
 
@@ -404,7 +404,7 @@ func TestGradeSubmission(t *testing.T) {
 	runArgs := ""
 	expected := "Hello World!"
 	language := "c++"
-	input := []string{}
+	input := []string{""}
 	wall := false
 	result := util.SubmissionResult{Student: "jgg0144", CompileSuccess: false, RunCorrect: false, Feedback: "", AssignmentId: 1, StudentId: 1}
 
@@ -414,8 +414,8 @@ func TestGradeSubmission(t *testing.T) {
 		t.Fatalf("Compile error")
 	}
 
-	if result.Feedback != " Hello World!" {
-		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, " Hello World!")
+	if result.Feedback != expected {
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, expected)
 	}
 
 	if !result.RunCorrect {
