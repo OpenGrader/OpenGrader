@@ -13,9 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/OpenGrader/OpenGrader/util"
 	"github.com/OpenGrader/OpenGrader/db"
-
+	"github.com/OpenGrader/OpenGrader/util"
 
 	"github.com/joho/godotenv"
 )
@@ -101,7 +100,7 @@ func Server() {
 			// Prepare local directory
 			rootPathToDir, err := os.Getwd()
 			util.Throw(err)
-			workDir := rootPathToDir + "/submissions/"+assignmentId
+			workDir := rootPathToDir + "/submissions/" + assignmentId
 			err = os.MkdirAll(workDir+"/.spec/", 0766)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
@@ -131,7 +130,7 @@ func Server() {
 				return
 			}
 
-			// Prepare request object to send files from form to bucket 
+			// Prepare request object to send files from form to bucket
 			bucketUrl := "https://kasxttiggmakvprevgrp.supabase.co/storage/v1/object/assignments/" + assignmentId + "/"
 
 			// Iterate over multipart form files with name="code" and build local submissions directory
@@ -150,8 +149,8 @@ func Server() {
 				util.Throw(err)
 
 				bucketReq, err := http.NewRequest(
-					http.MethodPost, 
-					bucketUrl+studentId+"_"+header.Filename, 
+					http.MethodPost,
+					bucketUrl+studentId+"_"+header.Filename,
 					bytes.NewReader(fileBytes),
 				)
 				util.Throw(err)
@@ -172,18 +171,17 @@ func Server() {
 			// Almost entirely copy and pasted from main(). Should refactor.
 			cmd := exec.Command("ls")
 			cmd.Dir = workDir
-			
-			out, _ := cmd.Output()
-			dirs := strings.Fields(string(out[:])) 
 
-			input := parseInFile(workDir+"/.spec/in.txt")
-			expected := getFile(workDir+"/.spec/out.txt")
+			out, _ := cmd.Output()
+			dirs := strings.Fields(string(out[:]))
+
+			input := parseInFile(workDir + "/.spec/in.txt")
+			expected := getFile(workDir + "/.spec/out.txt")
 
 			supabase := initSupabase()
-			
+
 			intAssignmentId, err := strconv.Atoi(assignmentId)
 			util.Throw(err)
-
 
 			var results util.SubmissionResults
 			results.Results = make(map[string]*util.SubmissionResult)
@@ -192,29 +190,29 @@ func Server() {
 				var result util.SubmissionResult
 				results.Results[dir] = &result
 				results.Order = append(results.Order, dir)
-		
+
 				result.Student = dir
-				
+
 				intStudentId, err := strconv.Atoi(studentId)
 				util.Throw(err)
 				// find hydratedStudent information from EUID (dirname)
 				hydratedStudent := db.GetStudentById(supabase, int8(intStudentId))
-		
+
 				// if student doesn't exist, commit to db
 				if hydratedStudent.Id == 0 {
 					hydratedStudent.Euid = dir
 					hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
-		
+
 					fmt.Printf("%8s: ", dir)
 					fmt.Printf("%+v\n", hydratedStudent)
-					
+
 				}
 				result.StudentId = hydratedStudent.Id
 				result.AssignmentId = int8(intAssignmentId)
-		
+
 				if queryResults[0].Language == "python3" || queryResults[0].Language == "python" {
 					result.CompileSuccess = true
-		
+
 					stdout := runInterpreted(filepath.Join(workDir, dir), queryResults[0].Args, input)
 					fmt.Printf("Output for %s: %s", result.Student, stdout)
 					result.RunCorrect, result.Feedback = compare(expected, stdout)
@@ -234,11 +232,11 @@ func Server() {
 			writeFullOutputToDb(supabase, results)
 
 			// Clean up files and directories
-			err = os.RemoveAll(rootPathToDir+"/submissions")
+			err = os.RemoveAll(rootPathToDir + "/submissions")
 			util.Throw(err)
 
 			// ALL DONE :D
-			// Write response table to user 
+			// Write response table to user
 			fmt.Fprint(w, resTable)
 
 		default:
