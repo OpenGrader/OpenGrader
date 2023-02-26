@@ -76,7 +76,7 @@ func GetStudentByEuid(sb *supabase.Client, euid string) (result DbStudent) {
 	err := sb.DB.From("user").Select("*").Limit(1).Eq("euid", euid).Execute(&container)
 	util.Throw(err)
 
-	fmt.Printf("%+v\n", container)
+	fmt.Printf("Student Information: %+v\n", container)
 
 	// handle not found case
 	if len(container) != 0 {
