@@ -218,7 +218,6 @@ func compile(dir, language string, wall bool) bool {
 		util.Throw(err)
 		fmt.Print("Compilation error, no language found")
 	}
-
 	cmd.Dir = dir
 	compileErr := cmd.Run()
 	// test if exit 0, aka successful compilation
@@ -248,7 +247,7 @@ func runCompiled(dir, args, language string, input []string) string {
 	stdin, err := cmd.StdinPipe()
 	util.Throw(err)
 
-	cmd.Start()	
+	cmd.Start()
 
 	processInput(stdin, input)
 	cmd.Wait()
@@ -367,8 +366,6 @@ func main() {
 
 	supabase := initSupabase()
 
-	fmt.Println("workdir: ", workDir)
-
 	cmd := exec.Command("ls")
 	cmd.Dir = workDir
 
@@ -378,7 +375,7 @@ func main() {
 	input := parseInFile(inFile)
 
 	expected := util.GetFile(workDir + "/.spec/out.txt")
-	fmt.Println(expected)
+	fmt.Print("Expected Output: ", expected, "\n\n")
 
 	ogInfo := util.ParseOgInfo(workDir + "/.spec/oginfo.json")
 	var assignmentId int8
@@ -405,7 +402,6 @@ func main() {
 		result.AssignmentId = assignmentId
 		// find hydratedStudent information from EUID (dirname)
 		hydratedStudent := db.GetStudentByEuid(supabase, dir)
-
 		if hydratedStudent.Id == 0 {
 			hydratedStudent.Euid = dir
 			hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
@@ -424,7 +420,7 @@ func main() {
 			result.CompileSuccess = true
 
 			stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
-			fmt.Printf("Output for %s: %s", result.Student, stdout)
+			fmt.Printf("Output For %s: %s", result.Student, stdout)
 			result.RunCorrect, result.Feedback = processOutput(expected, stdout)
 
 			// if student doesn't exist, commit to db
