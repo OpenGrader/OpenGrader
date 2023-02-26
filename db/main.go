@@ -25,6 +25,7 @@ type DbSubmission struct {
 	Score         int8     `json:"score"`
 	Flags         []string `json:"flags"`
 	SubmissionLoc string   `json:"submission_loc"`
+	Feedback      string   `json:"feedback"`
 }
 
 type DbStudent struct {
@@ -50,6 +51,7 @@ func toDbAssignment(assignment util.SubmissionResult) DbSubmission {
 		Score:         int8(util.CalculateScore(assignment)),
 		Flags:         []string{},
 		SubmissionLoc: "UNDEF",
+		Feedback:      assignment.Feedback,
 	}
 }
 

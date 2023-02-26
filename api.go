@@ -98,7 +98,7 @@ func Server() {
 			}
 
 			// Prepare request object to send files from form to bucket
-			bucketUrl := supabase.BaseURL + assignmentId + "/"
+			bucketUrl := supabase.BaseURL + "/" + "storage/v1/object/assignments/" + assignmentId + "/"
 			client := &http.Client{}
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
@@ -129,7 +129,7 @@ func Server() {
 				util.Throw(err)
 				if storageResponse.StatusCode != http.StatusOK {
 					fmt.Println("Upload status code: ", storageResponse.StatusCode)
-					fmt.Printf("Upload error: %s\n", storageResponse.Body)
+					fmt.Printf("Upload error: %v\n", storageResponse.Body)
 				}
 
 				file.Close()
@@ -144,7 +144,7 @@ func Server() {
 			dirs := strings.Fields(string(out[:]))
 
 			input := parseInFile(workDir + "/.spec/in.txt")
-			expected := getFile(workDir + "/.spec/out.txt")
+			expected := util.GetFile(workDir + "/.spec/out.txt")
 
 			intAssignmentId, err := strconv.Atoi(assignmentId)
 			util.Throw(err)
