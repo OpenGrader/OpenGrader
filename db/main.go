@@ -7,6 +7,17 @@ import (
 	"github.com/nedpals/supabase-go"
 )
 
+type DbAssignment struct {
+	Id int8 						`json:"id"`
+	Section int8				`json:"section"`
+	Title string				`json:"title"`
+	Description string	`json:"description"`
+	InputFile string		`json:"input_file"`
+	OutputFile string		`json:"output_file"`
+	Language string			`json:"language"`
+	Args string					`json:"args"`
+}
+
 type DbSubmission struct {
 	Assignment    int8     `json:"assignment"`
 	Student       int8     `json:"student"`
@@ -54,6 +65,19 @@ func SaveResult(sb *supabase.Client, result *util.SubmissionResult) {
 func GetResult(sb *supabase.Client, resultId int) (result DbSubmission) {
 	err := sb.DB.From("submission").Select("*").Eq("id", fmt.Sprint(resultId)).Execute(&result)
 	util.Throw(err)
+	return
+}
+
+func GetAssignment(sb *supabase.Client, assignmentId string) (result DbAssignment) {
+	var container []DbAssignment
+	err := sb.DB.From("assignment").Select("*").Eq("id", assignmentId).Execute(&container)
+	util.Throw(err)
+
+	if len(container) != 0 {
+		result = container[0]
+	} else {
+		fmt.Println("Assignment not found")
+	}
 	return
 }
 
