@@ -246,7 +246,7 @@ func TestRunCompiled(t *testing.T) {
 	}
 	`
 
-	tmp, _ := os.CreateTemp(".", "*.cpp")
+	tmp, _ := os.CreateTemp("", "*.cpp")
 	// Removes the created temp file, this will always run
 	defer os.Remove(tmp.Name())
 
