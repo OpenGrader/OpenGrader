@@ -237,14 +237,8 @@ func TestCompileWallFailure(t *testing.T) {
 }
 
 func TestRunCompiled(t *testing.T) {
-	cpp := `
-	#include <iostream>
-	using namespace std;
-		int main(int argc, char** argv) {
-    	cout << "Hello, C Plus Plus!" << endl;
-    	return 0;
-	}
-	`
+	cpp := `#include <iostream>
+	int main() { std::cout << "Hello world!" << std::endl; }`
 
 	tmp, _ := os.CreateTemp("", "*.cpp")
 	// Removes the created temp file, this will always run
@@ -267,8 +261,8 @@ func TestRunCompiled(t *testing.T) {
 		t.Errorf("Failed to open the compiled file: [err=%e]", err)
 	}
 
-	expected := "Hello, C Plus Plus!\n"
-	actual := runCompiled(dir, tmp.Name(), "c++", []string{"Hello, C Plus Plus\n"})
+	expected := "Hello world!\n"
+	actual := runCompiled(dir, tmp.Name(), "c++", []string{})
 
 	if expected != actual {
 		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
@@ -287,7 +281,7 @@ func TestRunInterpreted(t *testing.T) {
 
 	dir := strings.Join(parts, "/")
 	expected := "Hello, World!\n"
-	actual := runInterpreted(dir, tmp.Name(), "javascript", []string{"Hello, World!"})
+	actual := runInterpreted(dir, tmp.Name(), "javascript", []string{})
 	if expected != actual {
 		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
 	}
