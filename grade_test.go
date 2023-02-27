@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -211,7 +210,6 @@ func TestCompileWallSuccess(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to open the compiled file: [err=%e]", err)
 	}
-	fmt.Println(result)
 }
 func TestCompileWallFailure(t *testing.T) {
 	cpp := `int main() { int tst; tst += 1 }`
@@ -290,7 +288,6 @@ func TestRunInterpreted(t *testing.T) {
 	dir := strings.Join(parts, "/")
 	expected := "Hello, World!\n"
 	actual := runInterpreted(dir, tmp.Name(), "javascript", []string{"Hello, World!"})
-	log.Println(actual)
 	if expected != actual {
 		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)
 	}
