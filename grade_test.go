@@ -44,6 +44,7 @@ func TestThrow(t *testing.T) {
 
 func TestGetFile(t *testing.T) {
 	tmpFile, _ := os.CreateTemp("", "*")
+	defer os.Remove(tmpFile.Name())
 
 	expected := "writing a string to test\nand another line of stuff\n"
 	tmpFile.WriteString(expected)
@@ -54,7 +55,6 @@ func TestGetFile(t *testing.T) {
 		t.Errorf("String returned by util.GetFile did not match input string. [expected=%s] [actual=%s]", expected, actual)
 	}
 
-	os.Remove(tmpFile.Name())
 }
 
 func TestEvaluateDiffNoChanges(t *testing.T) {
@@ -354,7 +354,6 @@ func TestParseInFileWithInput(t *testing.T) {
 
 	actual := parseInFile(tmp.Name())
 	expected := []string{"test", "multiline ", "input", "for", "program", ""}
-	defer os.Remove(tmp.Name())
 	if len(expected) != len(actual) {
 		t.Fatalf("len(expected) != len(actual). Received %d, want %d", len(actual), len(expected))
 	}
