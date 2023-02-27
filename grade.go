@@ -205,9 +205,11 @@ func compile(dir, language string, wall bool) bool {
 	var cmd *exec.Cmd
 	if language == "java" {
 		compilePath, err = filepath.Glob(dir + "/*.java")
+		util.Throw(err)
 		cmd = exec.Command("javac", compilePath...)
 	} else if language == "c++" {
 		compilePath, err = filepath.Glob(dir + "/*.cpp")
+		util.Throw(err)
 		if wall {
 			compilePath = append([]string{"-Wall"}, compilePath...)
 			cmd = exec.Command("g++", compilePath...)
@@ -215,7 +217,6 @@ func compile(dir, language string, wall bool) bool {
 			cmd = exec.Command("g++", compilePath...)
 		}
 	} else {
-		util.Throw(err)
 		fmt.Print("Compilation error, no language found")
 	}
 	cmd.Dir = dir
