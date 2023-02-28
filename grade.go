@@ -330,12 +330,21 @@ func parseInFile(inFile string) (input []string) {
 // Grade a single student's submission.
 func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool) {
 	result.Student = dir
-	result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
-
-	if result.CompileSuccess {
-		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-		fmt.Printf("Output for %s: %s", result.Student, stdout)
+	
+	if language == "python" || language == "javascript" {
+		result.CompileSuccess = true
+		stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
+		fmt.Printf("Output For %s: %s", result.Student, stdout)
 		result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+	} else if language == "c++" || language == "java" {
+		result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
+		if result.CompileSuccess {
+			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
+			fmt.Printf("Output For %s: %s", result.Student, stdout)
+			result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+		}
+	} else {
+		fmt.Print("No language found")
 	}
 }
 
@@ -417,19 +426,8 @@ func main() {
 		}
 
 		result.StudentId = hydratedStudent.Id
-
-		if language == "python3" || language == "python" || language == "javascript" || language == "js" {
-			result.CompileSuccess = true
-
-			stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
-			fmt.Printf("Output For %s: %s", result.Student, stdout)
-			result.RunCorrect, result.Feedback = processOutput(expected, stdout)
-
-		} else if language == "java" || language == "c++" {
-			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
-		} else {
-			fmt.Print("No language found")
-		}
+		
+		gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
 
 	}
 	for _, id := range results.Order {
