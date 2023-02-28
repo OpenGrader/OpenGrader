@@ -403,6 +403,7 @@ func main() {
 		result.AssignmentId = assignmentId
 		// find hydratedStudent information from EUID (dirname)
 		hydratedStudent := db.GetStudentByEuid(supabase, dir)
+		// if student doesn't exist, commit to db
 		if hydratedStudent.Id == 0 {
 			hydratedStudent.Euid = dir
 			hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
@@ -424,7 +425,6 @@ func main() {
 			fmt.Printf("Output For %s: %s", result.Student, stdout)
 			result.RunCorrect, result.Feedback = processOutput(expected, stdout)
 
-			// if student doesn't exist, commit to db
 		} else if language == "java" || language == "c++" {
 			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
 		} else {
