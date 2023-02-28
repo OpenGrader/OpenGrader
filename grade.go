@@ -235,8 +235,8 @@ func runCompiled(dir, args, language string, input []string) string {
 		cmd = exec.Command("java", strings.Fields(args)...)
 	} else if language == "c++" {
 		if os == "windows" {
-			cmd = exec.Command(".\a.exe", strings.Fields(args)...)
-		} else if os == "linux" {
+			cmd = exec.Command(".\\a.exe", strings.Fields(args)...)
+		} else if os == "linux" || os == "darwin" {
 			cmd = exec.Command("./a.out", strings.Fields(args)...)
 		} else {
 			panic("Error: OS is not compatible.")
