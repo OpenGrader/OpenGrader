@@ -330,7 +330,7 @@ func parseInFile(inFile string) (input []string) {
 // Grade a single student's submission.
 func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool) {
 	result.Student = dir
-	
+
 	if language == "python" || language == "javascript" {
 		result.CompileSuccess = true
 		stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
@@ -426,7 +426,7 @@ func main() {
 		}
 
 		result.StudentId = hydratedStudent.Id
-		
+
 		gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
 
 	}
