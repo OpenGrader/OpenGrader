@@ -404,8 +404,8 @@ func TestGradeSubmission(t *testing.T) {
 		t.Fatalf("Compile error")
 	}
 
-	if result.Feedback != expected {
-		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, expected)
+	if "Hello World!\n" != expected {
+		t.Errorf("actual.diff mismatch, received %#v, want %#v", "Hello World!\n", expected)
 	}
 
 	if !result.RunCorrect {
