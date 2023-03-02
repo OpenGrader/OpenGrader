@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -51,47 +50,22 @@ func Server() {
 				w.WriteHeader(http.StatusBadRequest + 21)
 				return
 			}
-			// Load environment Variables
+			// Load environment variables
 			err := godotenv.Load(".env")
 			util.Throw(err)
-			supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+			supabaseKey := os.Getenv("SUPABASE_KEY")
+
+
+			// Init supabase client
+			supabase := initSupabase()
 
 			// Get spec file based on assignment ID
-			// Initialize request object
-			req, err := http.NewRequest(
-				"GET",
-				"https://kasxttiggmakvprevgrp.supabase.co/rest/v1/assignment?select=input_file,output_file,language,args&id=eq."+assignmentId,
-				nil,
-			)
-			util.Throw(err)
-			req.Header.Add("apikey", supabaseKey)
-			req.Header.Add("Authorization", "Bearer "+supabaseKey)
+			assignment := db.GetAssignment(supabase, assignmentId)
 
-			// Initialize http client object
-			client := &http.Client{}
-			// Get response
-			resp, err := client.Do(req)
-			util.Throw(err)
-			// Read response
-			if resp.StatusCode != http.StatusOK {
-				fmt.Fprintf(w, "Failure to fetch assignment information")
-			}
-			// Decode JSON in a confusing way
-			var queryResults []AssigmentTableQuery
-			err = json.NewDecoder(resp.Body).Decode(&queryResults)
-			util.Throw(err)
 			// Get spec file contents located at the links retrieved from supabase
-			inFileResp, err := http.Get(queryResults[0].Input_file)
-			util.Throw(err)
-			inFileByteContent, err := io.ReadAll(inFileResp.Body)
-			defer inFileResp.Body.Close()
-			util.Throw(err)
+			inFileContent := getFileContentFromURL(assignment.InputFile)
+			outFileContent := getFileContentFromURL(assignment.OutputFile)
 
-			outFileResp, err := http.Get(queryResults[0].Output_file)
-			util.Throw(err)
-			outFileByteContent, err := io.ReadAll(outFileResp.Body)
-			defer outFileResp.Body.Close()
-			util.Throw(err)
 			// Prepare local directory
 			rootPathToDir, err := os.Getwd()
 			util.Throw(err)
@@ -107,17 +81,16 @@ func Server() {
 			}
 
 			// Create local spec files
-			err = os.WriteFile(workDir+"/.spec/in.txt", inFileByteContent, 0666)
+			err = os.WriteFile(workDir+"/.spec/in.txt", inFileContent, 0666)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
-			err = os.WriteFile(workDir+"/.spec/out.txt", outFileByteContent, 0666)
+			err = os.WriteFile(workDir+"/.spec/out.txt", outFileContent, 0666)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
-			// Parse Mutlipart form time D:
 			// calling this function parses the request body and fills the req.MultipartForm field
 			err = r.ParseMultipartForm(32 << 20) // 32 << 20 = 32 MB for max memory to hold the files
 			if err != nil {
@@ -127,8 +100,8 @@ func Server() {
 			}
 
 			// Prepare request object to send files from form to bucket
-			bucketUrl := "https://kasxttiggmakvprevgrp.supabase.co/storage/v1/object/assignments/" + assignmentId + "/"
-
+			bucketUrl := supabase.BaseURL + "/" + "storage/v1/object/assignments/" + assignmentId + "/"
+			client := &http.Client{}
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
 				file, err := header.Open()
@@ -158,6 +131,7 @@ func Server() {
 				util.Throw(err)
 				if storageResponse.StatusCode != http.StatusOK {
 					fmt.Println("Upload status code: ", storageResponse.StatusCode)
+					fmt.Printf("Upload error: %v\n", storageResponse.Body)
 				}
 
 				file.Close()
@@ -174,8 +148,6 @@ func Server() {
 			input := parseInFile(workDir + "/.spec/in.txt")
 			expected := util.GetFile(workDir + "/.spec/out.txt")
 
-			supabase := initSupabase()
-
 			intAssignmentId, err := strconv.Atoi(assignmentId)
 			util.Throw(err)
 
@@ -188,10 +160,10 @@ func Server() {
 				results.Order = append(results.Order, dir)
 
 				result.Student = dir
-
+				
+				// find hydratedStudent information from studentId (query param)
 				intStudentId, err := strconv.Atoi(studentId)
 				util.Throw(err)
-				// find hydratedStudent information from EUID (dirname)
 				hydratedStudent := db.GetStudentById(supabase, int8(intStudentId))
 
 				// if student doesn't exist, commit to db
@@ -206,16 +178,16 @@ func Server() {
 				result.StudentId = hydratedStudent.Id
 				result.AssignmentId = int8(intAssignmentId)
 
-				if queryResults[0].Language == "python3" || queryResults[0].Language == "python" {
+				if assignment.Language == "python3" || assignment.Language == "python" {
 					result.CompileSuccess = true
 
-					stdout := runInterpreted(filepath.Join(workDir, dir), queryResults[0].Args, queryResults[0].Language, input)
+				 stdout := runInterpreted(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
 					fmt.Printf("Output for %s: %s", result.Student, stdout)
 					result.RunCorrect, result.Feedback = compare(expected, stdout)
 				} else {
-					result.CompileSuccess = compile(filepath.Join(workDir, dir), queryResults[0].Language, false)
+					result.CompileSuccess = compile(filepath.Join(workDir, dir), assignment.Language, false)
 					if result.CompileSuccess {
-						stdout := runCompiled(filepath.Join(workDir, dir), queryResults[0].Args, queryResults[0].Language, input)
+						stdout := runCompiled(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
 						result.RunCorrect, result.Feedback = processOutput(expected, stdout)
 					}
 				}
@@ -241,4 +213,14 @@ func Server() {
 	})
 
 	log.Fatal(http.ListenAndServe(":4200", nil))
+}
+
+func getFileContentFromURL(url string) []byte {
+	fileResp, err := http.Get(url)
+	util.Throw(err)
+	fileContent, err := io.ReadAll(fileResp.Body)
+	defer fileResp.Body.Close()
+	util.Throw(err)
+
+	return fileContent
 }
