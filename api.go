@@ -55,6 +55,7 @@ func Server() {
 			util.Throw(err)
 			supabaseKey := os.Getenv("SUPABASE_KEY")
 
+
 			// Init supabase client
 			supabase := initSupabase()
 
@@ -93,6 +94,7 @@ func Server() {
 			// calling this function parses the request body and fills the req.MultipartForm field
 			err = r.ParseMultipartForm(32 << 20) // 32 << 20 = 32 MB for max memory to hold the files
 			if err != nil {
+				log.Fatalf("Error:\t%v\n", err)
 				w.WriteHeader(http.StatusBadRequest + 21)
 				return
 			}
@@ -179,13 +181,13 @@ func Server() {
 				if assignment.Language == "python3" || assignment.Language == "python" {
 					result.CompileSuccess = true
 
-					stdout := runInterpreted(filepath.Join(workDir, dir), assignment.Args, input)
+				 stdout := runInterpreted(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
 					fmt.Printf("Output for %s: %s", result.Student, stdout)
 					result.RunCorrect, result.Feedback = compare(expected, stdout)
 				} else {
-					result.CompileSuccess = compile(filepath.Join(workDir, dir), false)
+					result.CompileSuccess = compile(filepath.Join(workDir, dir), assignment.Language, false)
 					if result.CompileSuccess {
-						stdout := runCompiled(filepath.Join(workDir, dir), assignment.Args, input)
+						stdout := runCompiled(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
 						result.RunCorrect, result.Feedback = processOutput(expected, stdout)
 					}
 				}

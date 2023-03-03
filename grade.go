@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/andreyvit/diff"
@@ -58,7 +59,6 @@ func evaluateDiff(diff string) bool {
 // Diff two strings
 func compare(expected, actual string) (bool, string) {
 	d := diff.LineDiff(strings.TrimSpace(expected), strings.TrimSpace(actual))
-
 	return evaluateDiff(d), d
 }
 
@@ -199,30 +199,49 @@ func createCsv(results util.SubmissionResults, outfile string) {
 
 // Compiles a student submission located in $dir.
 // Returns true if compiled without errors.
-func compile(dir string, wall bool) bool {
-	compilePath, err := filepath.Glob(dir + "/*.cpp")
-	util.Throw(err)
-
+func compile(dir, language string, wall bool) bool {
+	var err error
+	var compilePath []string
 	var cmd *exec.Cmd
-	if wall {
-		compilePath = append([]string{"-Wall"}, compilePath...)
-		cmd = exec.Command("g++", compilePath...)
+	if language == "java" {
+		compilePath, err = filepath.Glob(dir + "/*.java")
+		util.Throw(err)
+		cmd = exec.Command("javac", compilePath...)
+	} else if language == "c++" {
+		compilePath, err = filepath.Glob(dir + "/*.cpp")
+		util.Throw(err)
+		if wall {
+			compilePath = append([]string{"-Wall"}, compilePath...)
+			cmd = exec.Command("g++", compilePath...)
+		} else {
+			cmd = exec.Command("g++", compilePath...)
+		}
 	} else {
-		cmd = exec.Command("g++", compilePath...)
+		fmt.Print("Compilation error, no language found")
 	}
 	cmd.Dir = dir
-
 	compileErr := cmd.Run()
-
-	// test if exit 0
+	// test if exit 0, aka successful compilation
 	return compileErr == nil
 }
 
 // Run the compiled program in directory $dir with command-line args $args
-func runCompiled(dir, args string, input []string) string {
+func runCompiled(dir, args, language string, input []string) string {
 	var stdout CmdOutput
-
-	cmd := exec.Command("./a.out", strings.Fields(args)...)
+	var cmd *exec.Cmd
+	var err error
+	os := runtime.GOOS
+	if language == "java" {
+		cmd = exec.Command("java", strings.Fields(args)...)
+	} else if language == "c++" {
+		if os == "windows" {
+			cmd = exec.Command(".\\a.exe", strings.Fields(args)...)
+		} else if os == "linux" || os == "darwin" {
+			cmd = exec.Command("./a.out", strings.Fields(args)...)
+		} else {
+			panic("Error: OS is not compatible.")
+		}
+	}
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 
@@ -232,15 +251,18 @@ func runCompiled(dir, args string, input []string) string {
 	cmd.Start()
 
 	processInput(stdin, input)
-
 	cmd.Wait()
 	return string(stdout.savedOutput)
 }
 
-func runInterpreted(dir, args string, input []string) string {
+func runInterpreted(dir, args, language string, input []string) string {
 	var stdout CmdOutput
-
-	cmd := exec.Command("python3", strings.Fields(args)...) //ex: python3 main.py arg1 arg2 ... argN
+	var cmd *exec.Cmd
+	if language == "js" || language == "javascript" {
+		cmd = exec.Command("node", strings.Fields(args)...)
+	} else if language == "python" || language == "python3" {
+		cmd = exec.Command(language, strings.Fields(args)...) // ex: python3 main.py arg1 arg2 ... argN
+	}
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	stdin, err := cmd.StdinPipe()
@@ -249,10 +271,10 @@ func runInterpreted(dir, args string, input []string) string {
 	cmd.Start()
 	processInput(stdin, input)
 	cmd.Wait()
-
 	return string(stdout.savedOutput)
 }
 
+// Write provided input to stdin, line by line.
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
 		io.WriteString(stdin, command+"\n")
@@ -306,16 +328,24 @@ func parseInFile(inFile string) (input []string) {
 }
 
 // Grade a single student's submission.
-func gradeSubmission(dir, workDir, runArgs, expected string, input []string, wall bool) (result util.SubmissionResult) {
+func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool) {
 	result.Student = dir
 
-	result.CompileSuccess = compile(filepath.Join(workDir, dir), wall)
-	if result.CompileSuccess {
-		stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
-		result.RunCorrect, result.Feedback = compare(expected, stdout)
+	if language == "python" || language == "javascript" {
+		result.CompileSuccess = true
+		stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
+		fmt.Printf("Output For %s: %s", result.Student, stdout)
+		result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+	} else if language == "c++" || language == "java" {
+		result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
+		if result.CompileSuccess {
+			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
+			fmt.Printf("Output For %s: %s", result.Student, stdout)
+			result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+		}
+	} else {
+		fmt.Print("No language found")
 	}
-
-	return
 }
 
 func initSupabase() *supa.Client {
@@ -346,8 +376,6 @@ func main() {
 
 	supabase := initSupabase()
 
-	fmt.Println("workdir: ", workDir)
-
 	cmd := exec.Command("ls")
 	cmd.Dir = workDir
 
@@ -357,7 +385,7 @@ func main() {
 	input := parseInFile(inFile)
 
 	expected := util.GetFile(workDir + "/.spec/out.txt")
-	fmt.Println(expected)
+	fmt.Print("Expected Output: ", expected, "\n\n")
 
 	ogInfo := util.ParseOgInfo(workDir + "/.spec/oginfo.json")
 	var assignmentId int8
@@ -380,12 +408,10 @@ func main() {
 		var result util.SubmissionResult
 		results.Results[dir] = &result
 		results.Order = append(results.Order, dir)
-
 		result.Student = dir
 		result.AssignmentId = assignmentId
 		// find hydratedStudent information from EUID (dirname)
 		hydratedStudent := db.GetStudentByEuid(supabase, dir)
-
 		// if student doesn't exist, commit to db
 		if hydratedStudent.Id == 0 {
 			hydratedStudent.Euid = dir
@@ -401,40 +427,14 @@ func main() {
 
 		result.StudentId = hydratedStudent.Id
 
-		if language == "python3" || language == "python" {
-			result.CompileSuccess = true
+		gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
 
-			stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, input)
-			fmt.Printf("Output for %s: %s", result.Student, stdout)
-			result.RunCorrect, result.Feedback = compare(expected, stdout)
-		} else {
-			result.CompileSuccess = compile(filepath.Join(workDir, dir), wall)
-			if result.CompileSuccess {
-				stdout := runCompiled(filepath.Join(workDir, dir), runArgs, input)
-				result.RunCorrect, result.Feedback = processOutput(expected, stdout)
-			} else {
-				result.Feedback = "Failed to compile."
-			}
-		}
 	}
-
 	for _, id := range results.Order {
-		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t]\n", id, results.Results[id].CompileSuccess, results.Results[id].RunCorrect)
+		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t] \n", id, results.Results[id].CompileSuccess, results.Results[id].RunCorrect)
 	}
-
 	if !isDryRun {
 		writeFullOutputToDb(supabase, results)
 	}
-
 	createCsv(results, outFile)
-
-	// This is for getting files in a directory, later to be searched with *.py, if that is how we end up implementing it
-	// files, err := ioutil.ReadDir(workDir)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	//	for _, file := range files {
-	//		fmt.Println(file.Name(), file.IsDir())
-	//	}
 }
