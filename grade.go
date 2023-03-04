@@ -405,8 +405,11 @@ func main() {
 		for i, test := range ogInfo.Tests {
 			expected := util.GetFile(workDir + "/.spec/" + test.Expected)
 			fmt.Print("Expected Output: ", expected, "\n\n")
-
-			input := parseInFile(workDir + "/.spec/" + test.Input)
+			var input = []string{}
+			if test.Input != "" {
+				input = parseInFile(workDir + "/.spec/" + test.Input)
+			}
+			
 			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, i)
 
 		}
