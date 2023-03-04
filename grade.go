@@ -105,30 +105,9 @@ func getDirectives(line string) directive {
 	return NONE
 }
 
-// Helper method to turn string slice into a readable, new line separated string that will print well in the report
-func stringSliceToPrettyString(input []string) string {
-	var output string = ""
-	for _, str := range input {
-		if str != "" {
-			output += fmt.Sprintf("%s\n", str)
-		}
-	}
-	return strings.TrimSpace(output)
-}
-
-// If all of the results are empty strings, program ran correct so return true. Else, return false
-func evalResults(res []string) bool {
-	for _, v := range res {
-		if v != "" {
-			return false
-		}
-	}
-	return true
-}
-
 // Function that evaluates student program output by computing it to expected output
 // Supports custom syntax in out.txt file, represented by the Syntax Dictionary in support.go
-func processOutput(expected, actual string) (bool, string) {
+func processOutput(expected, actual string) string {
 
 	// Convert strings into array of strings separated by a newline and manipulate text to handle any directives
 	expectedLines, actualLines := handleDirectives(strings.Split(expected, "\n"), strings.Split(actual, "\n"))
@@ -153,11 +132,11 @@ func processOutput(expected, actual string) (bool, string) {
 		case MENU:
 			var feedback []string
 			feedback, position, actualLines = SyntaxDictionary["menu"](line, actualLines, i)
-			results[i] = stringSliceToPrettyString(feedback)
+			results[i] = util.StringSliceToPrettyString(feedback)
 		case IGNORE:
 			var feedback []string
 			feedback, position, actualLines = SyntaxDictionary["ignore"](line, actualLines, i)
-			results[i] = stringSliceToPrettyString(feedback)
+			results[i] = util.StringSliceToPrettyString(feedback)
 		case NONE:
 			isNotDiff, diff := compare(line, actualLines[position])
 			if isNotDiff {
@@ -168,7 +147,7 @@ func processOutput(expected, actual string) (bool, string) {
 
 		}
 	}
-	return evalResults(results), stringSliceToPrettyString(results)
+	return util.StringSliceToPrettyString(results)
 }
 
 // Convert boolean to string
@@ -188,7 +167,7 @@ func createCsv(results util.SubmissionResults, outfile string) {
 	writer.Write([]string{"student", "compiled", "ran correctly", "feedback"})
 	for _, id := range results.Order {
 		result := results.Results[id]
-		row := []string{result.Student, btoa(result.CompileSuccess), btoa(result.RunCorrect), result.Feedback}
+		row := []string{result.Student, btoa(result.CompileSuccess), fmt.Sprint(result.Score), util.StringSliceToPrettyString(result.Feedback)}
 		if err := writer.Write(row); err != nil {
 			log.Fatalln("error writing record to file", err)
 		}
@@ -301,11 +280,10 @@ func OSReadDir(root string) []string {
 }
 
 // Parse user input flags and return as strings.
-func parseFlags() (workDir, runArgs, outFile, inFile, language string, wall bool, isDryRun bool, server bool, assignmentId int) {
+func parseFlags() (workDir, runArgs, outFile, language string, wall bool, isDryRun bool, server bool, assignmentId int) {
 	flag.StringVar(&workDir, "directory", "/code", "student submissions directory")
 	flag.StringVar(&runArgs, "args", "", "arguments to pass to compiled programs")
 	flag.BoolVar(&wall, "Wall", true, "compile programs using -Wall")
-	flag.StringVar(&inFile, "in", "", "file to read interactive input from")
 	flag.StringVar(&outFile, "out", "report.csv", "file to write results to")
 	flag.StringVar(&language, "lang", "", "Language to be tested")
 	flag.BoolVar(&isDryRun, "dry-run", false, "skip upload to db")
@@ -328,20 +306,20 @@ func parseInFile(inFile string) (input []string) {
 }
 
 // Grade a single student's submission.
-func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool) {
+func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool, testNumber int) {
 	result.Student = dir
 
 	if language == "python" || language == "javascript" {
 		result.CompileSuccess = true
 		stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
 		fmt.Printf("Output For %s: %s", result.Student, stdout)
-		result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+		result.Feedback[testNumber] = processOutput(expected, stdout)
 	} else if language == "c++" || language == "java" {
 		result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
 		if result.CompileSuccess {
 			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
 			fmt.Printf("Output For %s: %s", result.Student, stdout)
-			result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+			result.Feedback[testNumber] = processOutput(expected, stdout)
 		}
 	} else {
 		fmt.Print("No language found")
@@ -362,7 +340,7 @@ func writeFullOutputToDb(supabase *supa.Client, results util.SubmissionResults) 
 }
 
 func main() {
-	workDir, runArgs, outFile, inFile, language, wall, isDryRun, server, passedAssignmentId := parseFlags()
+	workDir, runArgs, outFile, language, wall, isDryRun, server, passedAssignmentId := parseFlags()
 	if server {
 		fmt.Println("=== API Started ===")
 		Server()
@@ -381,11 +359,6 @@ func main() {
 
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
-
-	input := parseInFile(inFile)
-
-	expected := util.GetFile(workDir + "/.spec/out.txt")
-	fmt.Print("Expected Output: ", expected, "\n\n")
 
 	ogInfo := util.ParseOgInfo(workDir + "/.spec/oginfo.json")
 	var assignmentId int8
@@ -427,11 +400,25 @@ func main() {
 
 		result.StudentId = hydratedStudent.Id
 
-		gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
+		result.Feedback = make([]string, len(ogInfo.Tests))
 
+		for i, test := range ogInfo.Tests {
+			expected := util.GetFile(workDir + "/.spec/" + test.Expected)
+			fmt.Print("Expected Output: ", expected, "\n\n")
+
+			input := parseInFile(workDir + "/.spec/" + test.Input)
+			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, i)
+
+		}
+
+		// If successfully compiled, calculate score. Otherwise, score is 0. Score is calculated by lack of feedback. 
+		// So, if something didn't compile, it would receive a score of 100 and we do not want that.
+		if result.CompileSuccess {
+			result.Score = int8(util.CalculateScore(result, ogInfo.Tests))
+		}
 	}
 	for _, id := range results.Order {
-		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%t] \n", id, results.Results[id].CompileSuccess, results.Results[id].RunCorrect)
+		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
 	}
 	if !isDryRun {
 		writeFullOutputToDb(supabase, results)

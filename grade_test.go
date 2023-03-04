@@ -133,9 +133,9 @@ func TestCreateCsv(t *testing.T) {
 	var res util.SubmissionResults
 	res.Results = make(map[string]*util.SubmissionResult)
 
-	res.Results["aaa0001"] = &util.SubmissionResult{Student: "aaa0001", CompileSuccess: true, RunCorrect: false, Feedback: "<diff1>", AssignmentId: int8(1), StudentId: int8(1)}
-	res.Results["bbb0002"] = &util.SubmissionResult{Student: "bbb0002", CompileSuccess: true, RunCorrect: true, Feedback: "<diff2>", AssignmentId: 1, StudentId: 1}
-	res.Results["ccc0003"] = &util.SubmissionResult{Student: "ccc0003", CompileSuccess: false, RunCorrect: false, Feedback: "<diff3>", AssignmentId: 1, StudentId: 1}
+	res.Results["aaa0001"] = &util.SubmissionResult{Student: "aaa0001", CompileSuccess: true, Score: 100, Feedback: []string{"<diff1>"}, AssignmentId: int8(1), StudentId: int8(1)}
+	res.Results["bbb0002"] = &util.SubmissionResult{Student: "bbb0002", CompileSuccess: true, Score: 50, Feedback: []string{"<diff2>"}, AssignmentId: 1, StudentId: 1}
+	res.Results["ccc0003"] = &util.SubmissionResult{Student: "ccc0003", CompileSuccess: false, Score: 50, Feedback: []string{"<diff3>"}, AssignmentId: 1, StudentId: 1}
 	res.Order = []string{"aaa0001", "bbb0002", "ccc0003"}
 
 	tmp, _ := os.CreateTemp("", "*")
@@ -145,9 +145,9 @@ func TestCreateCsv(t *testing.T) {
 	createCsv(res, tmp.Name())
 
 	expected := `student,compiled,ran correctly,feedback
-aaa0001,true,false,<diff1>
-bbb0002,true,true,<diff2>
-ccc0003,false,false,<diff3>
+aaa0001,true,100,<diff1>
+bbb0002,true,50,<diff2>
+ccc0003,false,50,<diff3>
 `
 
 	if actual := util.GetFile(tmp.Name()); actual != expected {
@@ -303,15 +303,14 @@ func TestParseFlags(t *testing.T) {
 	expectedWorkDir := "my/directory"
 	expectedRunArgs := "--test --args -f"
 	expectedOutFile := "my-outfile"
-	expectedInFile := "my-infile"
 	expectedWall := false
 	expectedDryRun := false
 	expectedServer := false
 	expectedAssignmentId := 93
 
-	os.Args = []string{"test", "--out", expectedOutFile, "--in", expectedInFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs, "--assignment-id", fmt.Sprint(expectedAssignmentId)}
+	os.Args = []string{"test", "--out", expectedOutFile, "--Wall=false", "--directory", expectedWorkDir, "--args", expectedRunArgs, "--assignment-id", fmt.Sprint(expectedAssignmentId)}
 
-	workDir, runArgs, outFile, inFile, _, wall, isDryRun, server, assignmentId := parseFlags()
+	workDir, runArgs, outFile, _, wall, isDryRun, server, assignmentId := parseFlags()
 
 	if workDir != expectedWorkDir {
 		t.Errorf("Mismatched workDir [expected=%#v] [actual=%#v]", expectedWorkDir, workDir)
@@ -323,10 +322,6 @@ func TestParseFlags(t *testing.T) {
 
 	if outFile != expectedOutFile {
 		t.Errorf("Mismatched outFile [expected=%#v] [actual=%#v]", expectedOutFile, outFile)
-	}
-
-	if inFile != expectedInFile {
-		t.Errorf("Mismatched inFile [expected=%#v] [actual=%#v]", expectedInFile, inFile)
 	}
 
 	if wall != expectedWall {
@@ -396,20 +391,20 @@ func TestGradeSubmission(t *testing.T) {
 	language := "c++"
 	input := []string{""}
 	wall := false
-	result := util.SubmissionResult{Student: "jgg0144", CompileSuccess: false, RunCorrect: false, Feedback: "", AssignmentId: 1, StudentId: 1}
+	result := util.SubmissionResult{Student: "jgg0144", CompileSuccess: false, Score: 0, Feedback: []string{""}, AssignmentId: 1, StudentId: 1}
 
-	gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall)
+	gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, 0)
 
 	if !result.CompileSuccess {
 		t.Fatalf("Compile error")
 	}
 
-	if result.Feedback != "" {
+	if result.Feedback[0] != "" {
 		t.Errorf("actual.diff mismatch, received %#v, want %#v", result.Feedback, expected)
 	}
 
-	if !result.RunCorrect {
-		t.Errorf("actual.runCorrect is false, want true")
+	if result.Score != 0 {
+		t.Errorf("result.Score is not 0, received %#v, want %#v", result.Score, 0)
 	}
 
 	if result.Student != dir {
