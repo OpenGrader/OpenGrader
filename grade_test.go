@@ -144,7 +144,7 @@ func TestCreateCsv(t *testing.T) {
 
 	createCsv(res, tmp.Name())
 
-	expected := `student,compiled,ran correctly,feedback
+	expected := `student,compiled,score,feedback
 aaa0001,true,100,<diff1>
 bbb0002,true,50,<diff2>
 ccc0003,false,50,<diff3>
