@@ -72,7 +72,9 @@ func ParseOgInfo(path string) (info AssignmentInfo) {
 		return
 	}
 
-	json.Unmarshal(data, &info)
+	unmarshalErr := json.Unmarshal(data, &info)
+	Throw(unmarshalErr)
+
 	return
 }
 
