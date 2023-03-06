@@ -42,12 +42,12 @@ func TestCalculateScore(t *testing.T) {
 			SubmissionResult{
 				Student:        "test",
 				CompileSuccess: true,
-				Score:        0,	
-				Feedback:     []string{"", "test"},
-				AssignmentId: 1,
-				StudentId:    1,
+				Score:          0,
+				Feedback:       []string{"", "test"},
+				AssignmentId:   1,
+				StudentId:      1,
 			},
-			[]Test{	
+			[]Test{
 				{
 					Expected: "test",
 					Input:    "test",
@@ -132,35 +132,35 @@ func TestParseAssignmentOgInfo(t *testing.T) {
 
 	var want = AssignmentInfo{
 		AssignmentId: 1,
-		Args: "",
-		DryRun: true,
-		Language: "c++",
-		OutputFile: "Report1.csv",
-		Wall: false,
+		Args:         "",
+		DryRun:       true,
+		Language:     "c++",
+		OutputFile:   "Report1.csv",
+		Wall:         false,
 		Tests: []Test{
 			{
 				Expected: "test1/out.txt",
-				Input: "test1/in.txt",
-				Weight: 50,
-				Open: true,
+				Input:    "test1/in.txt",
+				Weight:   50,
+				Open:     true,
 			},
 			{
 				Expected: "test2/out.txt",
-				Input: "test2/in.txt",
-				Weight: 10,
-				Open: false,
+				Input:    "test2/in.txt",
+				Weight:   10,
+				Open:     false,
 			},
 			{
 				Expected: "test3/out.txt",
-				Input: "test3/in.txt",
-				Weight: 15,
-				Open: false,
+				Input:    "test3/in.txt",
+				Weight:   15,
+				Open:     false,
 			},
 			{
 				Expected: "test4/out.txt",
-				Input: "test4/in.txt",
-				Weight: 25,
-				Open: true,
+				Input:    "test4/in.txt",
+				Weight:   25,
+				Open:     true,
 			},
 		},
 	}
@@ -204,7 +204,7 @@ func TestParseAssignmentOgInfo(t *testing.T) {
 	defer os.Remove(tmp.Name())
 
 	os.WriteFile(tmp.Name(), []byte(oginfo), os.ModeAppend)
-	
+
 	got := ParseAssignmentOgInfo(tmp.Name())
 
 	if got.AssignmentId != want.AssignmentId {
@@ -250,8 +250,8 @@ func TestParseAssignmentOgInfo(t *testing.T) {
 
 func TestParseStudentInfo(t *testing.T) {
 	var want = StudentInfo{
-		StudentEuid: "jjd1234",
-		StudentName: "John Doe",
+		StudentEuid:  "jjd1234",
+		StudentName:  "John Doe",
 		StudentEmail: "JohnDoe@my.unt.edu",
 	}
 
