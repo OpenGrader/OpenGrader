@@ -347,7 +347,26 @@ func main() {
 		return
 	}
 
-	if isDryRun {
+	assignmentInfo := util.ParseAssignmentOgInfo(workDir + "/.spec/oginfo.json")
+
+	if language == "" {
+		language = assignmentInfo.Language
+	}
+
+	if runArgs == "" {
+		runArgs = assignmentInfo.Args
+	}
+
+	if !wall {
+		wall = assignmentInfo.Wall
+	}
+
+	// precendence is flipped on this one bc we do not want outFile's default value taking precedence over a set val in oginfo.json
+	if assignmentInfo.OutputFile != "" {
+		outFile = assignmentInfo.OutputFile
+	}
+	
+	if assignmentInfo.DryRun || isDryRun {
 		fmt.Println("=== Dry run - output will not be uploaded to database ===")
 	}
 	godotenv.Load()
@@ -360,15 +379,13 @@ func main() {
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
 
-	ogInfo := util.ParseOgInfo(workDir + "/.spec/oginfo.json")
 	var assignmentId int8
-
 	// determine which assignment id to use, flag takes precedence over file
 	if passedAssignmentId == 0 {
-		if ogInfo.AssignmentId == 0 {
+		if assignmentInfo.AssignmentId == 0 {
 			assignmentId = 1
 		} else {
-			assignmentId = ogInfo.AssignmentId
+			assignmentId = assignmentInfo.AssignmentId
 		}
 	} else {
 		assignmentId = int8(passedAssignmentId)
@@ -400,9 +417,9 @@ func main() {
 
 		result.StudentId = hydratedStudent.Id
 
-		result.Feedback = make([]string, len(ogInfo.Tests))
+		result.Feedback = make([]string, len(assignmentInfo.Tests))
 
-		for i, test := range ogInfo.Tests {
+		for i, test := range assignmentInfo.Tests {
 			expected := util.GetFile(workDir + "/.spec/" + test.Expected)
 
 			if test.Open {
@@ -438,13 +455,13 @@ func main() {
 		// If successfully compiled, calculate score. Otherwise, score is 0. Score is calculated by lack of feedback.
 		// So, if something didn't compile, it would receive a score of 100 and we do not want that.
 		if result.CompileSuccess {
-			result.Score = int8(util.CalculateScore(result, ogInfo.Tests))
+			result.Score = int8(util.CalculateScore(result, assignmentInfo.Tests))
 		}
 	}
 	for _, id := range results.Order {
 		fmt.Printf("%s: [compileSuccess=%t] [Score=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
 	}
-	if !isDryRun {
+	if !isDryRun && !assignmentInfo.DryRun {
 		writeFullOutputToDb(supabase, results)
 	}
 	createCsv(results, outFile)

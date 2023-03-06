@@ -33,7 +33,18 @@ type Test struct {
 
 type AssignmentInfo struct {
 	AssignmentId 	int8		`json:"AssignmentId"`
+	Args 					string	`json:"Args"`
+	DryRun 				bool		`json:"DryRun"`
+	Language 			string	`json:"Language"`
+	OutputFile 		string	`json:"OutputFile"`
+	Wall					bool 		`json:"Wall"`
 	Tests 				[]Test	`json:"Tests"`
+}
+
+type StudentInfo struct {
+	StudentEuid 	string	`json:"StudentEuid"`
+	StudentName 	string	`json:"StudentName"`
+	StudentEmail 	string	`json:"StudentEmail"`
 }
 
 func CalculateScore(result SubmissionResult, tests []Test) (score int) {
@@ -65,7 +76,20 @@ func GetFile(fp string) string {
 }
 
 // Parse the oginfo.json file into the AssignmentInfo struct
-func ParseOgInfo(path string) (info AssignmentInfo) {
+func ParseAssignmentOgInfo(path string) (info AssignmentInfo) {
+	// manually reading file bc need to fail gracefully
+	data, err := os.ReadFile(path)
+
+	if err != nil {
+		return
+	}
+
+	json.Unmarshal(data, &info)
+	return
+}
+
+// Parse the oginfo.json file into the AssignmentInfo struct
+func ParseStudentOgInfo(path string) (info StudentInfo) {
 	// manually reading file bc need to fail gracefully
 	data, err := os.ReadFile(path)
 

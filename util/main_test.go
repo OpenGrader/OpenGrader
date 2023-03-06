@@ -128,10 +128,15 @@ func TestGetFile(t *testing.T) {
 	}
 }
 
-func TestParseOgInfo(t *testing.T) {
+func TestParseAssignmentOgInfo(t *testing.T) {
 
 	var want = AssignmentInfo{
 		AssignmentId: 1,
+		Args: "",
+		DryRun: true,
+		Language: "c++",
+		OutputFile: "Report1.csv",
+		Wall: false,
 		Tests: []Test{
 			{
 				Expected: "test1/out.txt",
@@ -164,6 +169,11 @@ func TestParseOgInfo(t *testing.T) {
 
 	oginfo := `{
 		"AssignmentId": 1,
+		"Args": "",
+		"DryRun": true,
+		"Language": "c++",
+		"OutputFile": "Report1.csv",
+		"Wall": false,
 		"Tests": [
 			{
 				"Expected": "test1/out.txt",
@@ -197,7 +207,7 @@ func TestParseOgInfo(t *testing.T) {
 
 	os.WriteFile(tmp.Name(), []byte(oginfo), os.ModeAppend)
 	
-	got := ParseOgInfo(tmp.Name())
+	got := ParseAssignmentOgInfo(tmp.Name())
 
 	if got.AssignmentId != want.AssignmentId {
 		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
