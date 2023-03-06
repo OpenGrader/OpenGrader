@@ -235,7 +235,11 @@ func runCompiled(dir, args, language string, input []string) string {
 
 	processInput(stdin, input)
 	waitErr := cmd.Wait()
-	util.Throw(waitErr)
+
+	// ignore short write errors since this is expected
+	if waitErr != nil && waitErr.Error() != "short write" {
+		panic(waitErr)
+	}
 
 	return string(stdout.savedOutput)
 }
@@ -258,7 +262,11 @@ func runInterpreted(dir, args, language string, input []string) string {
 
 	processInput(stdin, input)
 	waitErr := cmd.Wait()
-	util.Throw(waitErr)
+
+	// ignore short write errors since this is expected
+	if waitErr != nil && waitErr.Error() != "short write" {
+		panic(waitErr)
+	}
 
 	return string(stdout.savedOutput)
 }
