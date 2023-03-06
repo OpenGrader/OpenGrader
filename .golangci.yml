@@ -3,3 +3,9 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
+linters:
+  enable:
+    - gofmt
+linters-settings:
+  gofmt:
+    simplify: false

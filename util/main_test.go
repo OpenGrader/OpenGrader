@@ -42,12 +42,12 @@ func TestCalculateScore(t *testing.T) {
 			SubmissionResult{
 				Student:        "test",
 				CompileSuccess: true,
-				Score:        0,	
-				Feedback:     []string{"", "test"},
-				AssignmentId: 1,
-				StudentId:    1,
+				Score:          0,
+				Feedback:       []string{"", "test"},
+				AssignmentId:   1,
+				StudentId:      1,
 			},
-			[]Test{	
+			[]Test{
 				{
 					Expected: "test",
 					Input:    "test",
@@ -135,28 +135,26 @@ func TestParseOgInfo(t *testing.T) {
 		Tests: []Test{
 			{
 				Expected: "test1/out.txt",
-				Input: "test1/in.txt",
-				Weight: 50,
+				Input:    "test1/in.txt",
+				Weight:   50,
 			},
 			{
 				Expected: "test2/out.txt",
-				Input: "test2/in.txt",
-				Weight: 10,
+				Input:    "test2/in.txt",
+				Weight:   10,
 			},
 			{
 				Expected: "test3/out.txt",
-				Input: "test3/in.txt",
-				Weight: 15,
+				Input:    "test3/in.txt",
+				Weight:   15,
 			},
 			{
 				Expected: "test4/out.txt",
-				Input: "test4/in.txt",
-				Weight: 25,
+				Input:    "test4/in.txt",
+				Weight:   25,
 			},
 		},
 	}
-
-
 
 	oginfo := `{
 		"AssignmentId": 1,
@@ -189,7 +187,7 @@ func TestParseOgInfo(t *testing.T) {
 	defer os.Remove(tmp.Name())
 
 	os.WriteFile(tmp.Name(), []byte(oginfo), os.ModeAppend)
-	
+
 	got := ParseOgInfo(tmp.Name())
 
 	if got.AssignmentId != want.AssignmentId {

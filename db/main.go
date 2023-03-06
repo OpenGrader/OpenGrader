@@ -8,14 +8,14 @@ import (
 )
 
 type DbAssignment struct {
-	Id int8 						`json:"id"`
-	Section int8				`json:"section"`
-	Title string				`json:"title"`
-	Description string	`json:"description"`
-	InputFile string		`json:"input_file"`
-	OutputFile string		`json:"output_file"`
-	Language string			`json:"language"`
-	Args string					`json:"args"`
+	Id          int8   `json:"id"`
+	Section     int8   `json:"section"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	InputFile   string `json:"input_file"`
+	OutputFile  string `json:"output_file"`
+	Language    string `json:"language"`
+	Args        string `json:"args"`
 }
 
 type DbSubmission struct {
