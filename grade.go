@@ -164,7 +164,10 @@ func createCsv(results util.SubmissionResults, outfile string) {
 	util.Throw(err)
 
 	writer := csv.NewWriter(file)
-	writer.Write([]string{"student", "compiled", "score", "feedback"})
+
+	writeErr := writer.Write([]string{"student", "compiled", "score", "feedback"})
+	util.Throw(writeErr)
+
 	for _, id := range results.Order {
 		result := results.Results[id]
 		row := []string{result.Student, btoa(result.CompileSuccess), fmt.Sprint(result.Score), util.StringSliceToPrettyString(result.Feedback)}
@@ -227,10 +230,17 @@ func runCompiled(dir, args, language string, input []string) string {
 	stdin, err := cmd.StdinPipe()
 	util.Throw(err)
 
-	cmd.Start()
+	cmdErr := cmd.Start()
+	util.Throw(cmdErr)
 
 	processInput(stdin, input)
-	cmd.Wait()
+	waitErr := cmd.Wait()
+
+	// ignore short write errors since this is expected
+	if waitErr != nil && waitErr.Error() != "short write" {
+		panic(waitErr)
+	}
+
 	return string(stdout.savedOutput)
 }
 
@@ -247,16 +257,25 @@ func runInterpreted(dir, args, language string, input []string) string {
 	stdin, err := cmd.StdinPipe()
 	util.Throw(err)
 
-	cmd.Start()
+	cmdErr := cmd.Start()
+	util.Throw(cmdErr)
+
 	processInput(stdin, input)
-	cmd.Wait()
+	waitErr := cmd.Wait()
+
+	// ignore short write errors since this is expected
+	if waitErr != nil && waitErr.Error() != "short write" {
+		panic(waitErr)
+	}
+
 	return string(stdout.savedOutput)
 }
 
 // Write provided input to stdin, line by line.
 func processInput(stdin io.WriteCloser, input []string) {
 	for _, command := range input {
-		io.WriteString(stdin, command+"\n")
+		_, err := io.WriteString(stdin, command+"\n")
+		util.Throw(err)
 	}
 }
 
@@ -318,7 +337,6 @@ func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expec
 		result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
 		if result.CompileSuccess {
 			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-
 			result.Feedback[testNumber] = processOutput(expected, stdout)
 		}
 	} else {
@@ -369,7 +387,8 @@ func main() {
 	if assignmentInfo.DryRun || isDryRun {
 		fmt.Println("=== Dry run - output will not be uploaded to database ===")
 	}
-	godotenv.Load()
+	envErr := godotenv.Load()
+	util.Throw(envErr)
 
 	supabase := initSupabase()
 
@@ -463,6 +482,7 @@ func main() {
 				fmt.Printf("Test #%d Feedback:\nCompilation failed.\n\n", i+1)
 			}
 
+
 		}
 
 		// If successfully compiled, calculate score. Otherwise, score is 0. Score is calculated by lack of feedback.
@@ -473,6 +493,7 @@ func main() {
 	}
 	for _, id := range results.Order {
 		fmt.Printf("%s: [compileSuccess=%t] [Score=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
+
 	}
 	if !isDryRun && !assignmentInfo.DryRun {
 		writeFullOutputToDb(supabase, results)

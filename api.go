@@ -103,31 +103,35 @@ func Server() {
 			client := &http.Client{}
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
-				file, err := header.Open()
-				util.Throw(err)
+				file, openErr := header.Open()
+				util.Throw(openErr)
 				// Save locally
-				localFile, err := os.Create("./submissions/" + assignmentId + "/" + studentId + "/" + header.Filename)
-				util.Throw(err)
-				io.Copy(localFile, file)
+				localFile, createErr := os.Create("./submissions/" + assignmentId + "/" + studentId + "/" + header.Filename)
+				util.Throw(createErr)
+
+				_, copyErr := io.Copy(localFile, file)
+				util.Throw(copyErr)
 
 				// Gather file bytes for bucket upload body
 				// Rewind file pointer to start
-				file.Seek(0, io.SeekStart)
-				fileBytes, err := io.ReadAll(file)
-				util.Throw(err)
+				_, seekErr := file.Seek(0, io.SeekStart)
+				util.Throw(seekErr)
 
-				bucketReq, err := http.NewRequest(
+				fileBytes, readErr := io.ReadAll(file)
+				util.Throw(readErr)
+
+				bucketReq, reqErr := http.NewRequest(
 					http.MethodPost,
 					bucketUrl+studentId+"_"+header.Filename,
 					bytes.NewReader(fileBytes),
 				)
-				util.Throw(err)
+				util.Throw(reqErr)
 				bucketReq.Header.Add("apikey", supabaseKey)
 				bucketReq.Header.Add("Authorization", "Bearer "+supabaseKey)
 
 				// Send to bucket
-				storageResponse, err := client.Do(bucketReq)
-				util.Throw(err)
+				storageResponse, doErr := client.Do(bucketReq)
+				util.Throw(doErr)
 				if storageResponse.StatusCode != http.StatusOK {
 					fmt.Println("Upload status code: ", storageResponse.StatusCode)
 					fmt.Printf("Upload error: %v\n", storageResponse.Body)
@@ -159,6 +163,8 @@ func Server() {
 				results.Order = append(results.Order, dir)
 
 				result.Student = dir
+
+				result.Feedback = make([]string, 1)
 
 				// find hydratedStudent information from studentId (query param)
 				intStudentId, err := strconv.Atoi(studentId)

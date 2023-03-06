@@ -165,8 +165,6 @@ func TestParseAssignmentOgInfo(t *testing.T) {
 		},
 	}
 
-
-
 	oginfo := `{
 		"AssignmentId": 1,
 		"Args": "",
@@ -243,7 +241,6 @@ func TestParseAssignmentOgInfo(t *testing.T) {
 		if got.Tests[i].Weight != want.Tests[i].Weight {
 			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 		}
-
 		if got.Tests[i].Open != want.Tests[i].Open {
 			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 		}
