@@ -164,7 +164,7 @@ func createCsv(results util.SubmissionResults, outfile string) {
 	util.Throw(err)
 
 	writer := csv.NewWriter(file)
-	writer.Write([]string{"student", "compiled", "ran correctly", "feedback"})
+	writer.Write([]string{"student", "compiled", "score", "feedback"})
 	for _, id := range results.Order {
 		result := results.Results[id]
 		row := []string{result.Student, btoa(result.CompileSuccess), fmt.Sprint(result.Score), util.StringSliceToPrettyString(result.Feedback)}
@@ -312,13 +312,13 @@ func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expec
 	if language == "python" || language == "javascript" {
 		result.CompileSuccess = true
 		stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
-		fmt.Printf("Output For %s: %s", result.Student, stdout)
+
 		result.Feedback[testNumber] = processOutput(expected, stdout)
 	} else if language == "c++" || language == "java" {
 		result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
 		if result.CompileSuccess {
 			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-			fmt.Printf("Output For %s: %s", result.Student, stdout)
+
 			result.Feedback[testNumber] = processOutput(expected, stdout)
 		}
 	} else {
@@ -406,44 +406,43 @@ func main() {
 			expected := util.GetFile(workDir + "/.spec/" + test.Expected)
 
 			if test.Open {
-				fmt.Printf("Test #%d Expected Output:\n%s\n\n", i, expected)
+				fmt.Printf("Test #%d Expected Output:\n%s\n\n", i+1, expected)
 			}
-			
+
 			var input = []string{}
 			if test.Input != "" {
 				input = parseInFile(workDir + "/.spec/" + test.Input)
 			}
-			
+
 			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, i)
-			
-			
+
 			var testResult string
-			if result.CompileSuccess && result.Feedback[i] == ""  {
+			if result.CompileSuccess && result.Feedback[i] == "" {
 				testResult = "PASS"
 			} else {
 				testResult = "FAIL"
 			}
 
-			fmt.Printf("Test #%d Result:\n%s\n\n", i, testResult)
+			fmt.Printf("Test #%d Result:\n%s\n\n", i+1, testResult)
 
-			if result.CompileSuccess && test.Open {
-				fmt.Printf("Test #%d Feedback:\n%s\n\n", i, result.Feedback[i])
+			if result.CompileSuccess && test.Open && result.Feedback[i] != "" {
+				fmt.Printf("Test #%d Feedback:\n%s\n\n", i+1, result.Feedback[i])
 			}
-			
+
 			if !result.CompileSuccess && test.Open {
-				fmt.Printf("Test #%d Feedback:\nCompilation failed.\n\n", i)
+				fmt.Printf("Test #%d Feedback:\nCompilation failed.\n\n", i+1)
 			}
 
 		}
 
-		// If successfully compiled, calculate score. Otherwise, score is 0. Score is calculated by lack of feedback. 
+		// If successfully compiled, calculate score. Otherwise, score is 0. Score is calculated by lack of feedback.
 		// So, if something didn't compile, it would receive a score of 100 and we do not want that.
 		if result.CompileSuccess {
 			result.Score = int8(util.CalculateScore(result, ogInfo.Tests))
 		}
 	}
 	for _, id := range results.Order {
-		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
+		fmt.Printf("%s: [compileSuccess=%t] [Score=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
 	}
 	if !isDryRun {
 		writeFullOutputToDb(supabase, results)
