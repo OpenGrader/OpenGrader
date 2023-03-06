@@ -160,6 +160,7 @@ func Server() {
 
 				result.Student = dir
 
+				result.Feedback = make([]string, 1)
 				// find hydratedStudent information from studentId (query param)
 				intStudentId, err := strconv.Atoi(studentId)
 				util.Throw(err)
