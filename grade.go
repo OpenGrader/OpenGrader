@@ -365,7 +365,7 @@ func main() {
 	if assignmentInfo.OutputFile != "" {
 		outFile = assignmentInfo.OutputFile
 	}
-	
+
 	if assignmentInfo.DryRun || isDryRun {
 		fmt.Println("=== Dry run - output will not be uploaded to database ===")
 	}
@@ -406,7 +406,7 @@ func main() {
 
 		results.Results[result.Student] = &result
 		results.Order = append(results.Order, result.Student)
-		
+
 		result.AssignmentId = assignmentId
 		// find hydratedStudent information from EUID (dirname)
 		hydratedStudent := db.GetStudentByEuid(supabase, result.Student)
