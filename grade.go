@@ -396,21 +396,34 @@ func main() {
 
 	for _, dir := range dirs {
 		var result util.SubmissionResult
-		results.Results[dir] = &result
-		results.Order = append(results.Order, dir)
-		result.Student = dir
+		studentInfo := util.ParseStudentOgInfo(workDir + "/" + dir + "/oginfo.json")
+
+		if studentInfo.StudentEuid != "" {
+			result.Student = studentInfo.StudentEuid
+		} else {
+			result.Student = dir
+		}
+
+		results.Results[result.Student] = &result
+		results.Order = append(results.Order, result.Student)
+		
 		result.AssignmentId = assignmentId
 		// find hydratedStudent information from EUID (dirname)
-		hydratedStudent := db.GetStudentByEuid(supabase, dir)
+		hydratedStudent := db.GetStudentByEuid(supabase, result.Student)
 		// if student doesn't exist, commit to db
 		if hydratedStudent.Id == 0 {
-			hydratedStudent.Euid = dir
-			hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
+			hydratedStudent.Euid = result.Student
 
-			fmt.Printf("%8s: ", dir)
+			if studentInfo.StudentEmail != "" {
+				hydratedStudent.Email = studentInfo.StudentEmail
+			} else {
+				hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", result.Student) // all students have euid@unt.edu
+			}
+
+			fmt.Printf("%8s: ", result.Student)
 			fmt.Printf("%+v\n", hydratedStudent)
 
-			if !isDryRun {
+			if !isDryRun || !assignmentInfo.DryRun {
 				hydratedStudent.Save(supabase)
 			}
 		}

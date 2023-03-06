@@ -88,7 +88,7 @@ func ParseAssignmentOgInfo(path string) (info AssignmentInfo) {
 	return
 }
 
-// Parse the oginfo.json file into the AssignmentInfo struct
+// Parse the oginfo.json file into the StudentInfo struct
 func ParseStudentOgInfo(path string) (info StudentInfo) {
 	// manually reading file bc need to fail gracefully
 	data, err := os.ReadFile(path)

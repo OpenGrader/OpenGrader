@@ -250,3 +250,37 @@ func TestParseAssignmentOgInfo(t *testing.T) {
 	}
 
 }
+
+func TestParseStudentInfo(t *testing.T) {
+	var want = StudentInfo{
+		StudentEuid: "jjd1234",
+		StudentName: "John Doe",
+		StudentEmail: "JohnDoe@my.unt.edu",
+	}
+
+	studentinfo := `{
+		"StudentEuid": "jjd1234",
+		"StudentName": "John Doe",
+		"StudentEmail": "JohnDoe@my.unt.edu"
+	}`
+
+	tmp, _ := os.CreateTemp("", "test.json")
+	defer os.Remove(tmp.Name())
+
+	os.WriteFile(tmp.Name(), []byte(studentinfo), os.ModeAppend)
+
+	got := ParseStudentOgInfo(tmp.Name())
+
+	if got.StudentEuid != want.StudentEuid {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.StudentName != want.StudentName {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.StudentEmail != want.StudentEmail {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+}
