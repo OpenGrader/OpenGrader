@@ -482,7 +482,6 @@ func main() {
 				fmt.Printf("Test #%d Feedback:\nCompilation failed.\n\n", i+1)
 			}
 
-
 		}
 
 		// If successfully compiled, calculate score. Otherwise, score is 0. Score is calculated by lack of feedback.
