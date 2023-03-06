@@ -99,7 +99,9 @@ func ParseStudentOgInfo(path string) (info StudentInfo) {
 		return
 	}
 
-	json.Unmarshal(data, &info)
+	unmarshalErr := json.Unmarshal(data, &info)
+	Throw(unmarshalErr)
+	
 	return
 }
 
