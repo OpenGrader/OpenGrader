@@ -16,35 +16,35 @@ type SubmissionResults struct {
 
 // Record of a student's submission, with metadata about how it ran and compiled.
 type SubmissionResult struct {
-	Student        	string
-	CompileSuccess 	bool
-	Score						int8
-	Feedback       	[]string
-	AssignmentId   	int8
-	StudentId      	int8
+	Student        string
+	CompileSuccess bool
+	Score          int8
+	Feedback       []string
+	AssignmentId   int8
+	StudentId      int8
 }
 
 type Test struct {
-	Expected 	string 	`json:"Expected"`
-	Input 		string	`json:"Input"`
-	Weight 		int8		`json:"Weight"`
-	Open 			bool		`json:"Open"`
+	Expected string `json:"Expected"`
+	Input    string `json:"Input"`
+	Weight   int8   `json:"Weight"`
+	Open     bool   `json:"Open"`
 }
 
 type AssignmentInfo struct {
-	AssignmentId 	int8		`json:"AssignmentId"`
-	Args 					string	`json:"Args"`
-	DryRun 				bool		`json:"DryRun"`
-	Language 			string	`json:"Language"`
-	OutputFile 		string	`json:"OutputFile"`
-	Wall					bool 		`json:"Wall"`
-	Tests 				[]Test	`json:"Tests"`
+	AssignmentId int8   `json:"AssignmentId"`
+	Args         string `json:"Args"`
+	DryRun       bool   `json:"DryRun"`
+	Language     string `json:"Language"`
+	OutputFile   string `json:"OutputFile"`
+	Wall         bool   `json:"Wall"`
+	Tests        []Test `json:"Tests"`
 }
 
 type StudentInfo struct {
-	StudentEuid 	string	`json:"StudentEuid"`
-	StudentName 	string	`json:"StudentName"`
-	StudentEmail 	string	`json:"StudentEmail"`
+	StudentEuid  string `json:"StudentEuid"`
+	StudentName  string `json:"StudentName"`
+	StudentEmail string `json:"StudentEmail"`
 }
 
 func CalculateScore(result SubmissionResult, tests []Test) (score int) {
@@ -101,7 +101,7 @@ func ParseStudentOgInfo(path string) (info StudentInfo) {
 
 	unmarshalErr := json.Unmarshal(data, &info)
 	Throw(unmarshalErr)
-	
+
 	return
 }
 
@@ -115,4 +115,3 @@ func StringSliceToPrettyString(input []string) string {
 	}
 	return strings.TrimSpace(output)
 }
-
