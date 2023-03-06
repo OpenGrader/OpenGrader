@@ -16,23 +16,23 @@ type SubmissionResults struct {
 
 // Record of a student's submission, with metadata about how it ran and compiled.
 type SubmissionResult struct {
-	Student        	string
-	CompileSuccess 	bool
-	Score						int8
-	Feedback       	[]string
-	AssignmentId   	int8
-	StudentId      	int8
+	Student        string
+	CompileSuccess bool
+	Score          int8
+	Feedback       []string
+	AssignmentId   int8
+	StudentId      int8
 }
 
 type Test struct {
-	Expected 	string 	`json:"Expected"`
-	Input 		string	`json:"Input"`
-	Weight 		int8		`json:"Weight"`
+	Expected string `json:"Expected"`
+	Input    string `json:"Input"`
+	Weight   int8   `json:"Weight"`
 }
 
 type AssignmentInfo struct {
-	AssignmentId 	int8		`json:"AssignmentId"`
-	Tests 				[]Test	`json:"Tests"`
+	AssignmentId int8   `json:"AssignmentId"`
+	Tests        []Test `json:"Tests"`
 }
 
 func CalculateScore(result SubmissionResult, tests []Test) (score int) {
@@ -72,7 +72,9 @@ func ParseOgInfo(path string) (info AssignmentInfo) {
 		return
 	}
 
-	json.Unmarshal(data, &info)
+	unmarshalErr := json.Unmarshal(data, &info)
+	Throw(unmarshalErr)
+
 	return
 }
 
