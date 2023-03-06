@@ -2,7 +2,6 @@ package util
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -10,44 +9,64 @@ import (
 // Write unit tests for the util package.
 
 func TestCalculateScore(t *testing.T) {
+	// Test cases for CalculateScore
 	var tests = []struct {
 		result SubmissionResult
+		tests  []Test
 		want   int
 	}{
 		{
 			SubmissionResult{
+				Student:        "test",
 				CompileSuccess: true,
-				RunCorrect:     true,
+				Score:          0,
+				Feedback:       []string{"", ""},
+				AssignmentId:   1,
+				StudentId:      1,
+			},
+			[]Test{
+				{
+					Expected: "test",
+					Input:    "test",
+					Weight:   1,
+				},
+				{
+					Expected: "test",
+					Input:    "test",
+					Weight:   1,
+				},
 			},
 			100,
 		},
 		{
 			SubmissionResult{
-				CompileSuccess: false,
-				RunCorrect:     true,
-			},
-			50,
-		},
-		{
-			SubmissionResult{
+				Student:        "test",
 				CompileSuccess: true,
-				RunCorrect:     false,
+				Score:        0,	
+				Feedback:     []string{"", "test"},
+				AssignmentId: 1,
+				StudentId:    1,
+			},
+			[]Test{	
+				{
+					Expected: "test",
+					Input:    "test",
+					Weight:   1,
+				},
+				{
+					Expected: "test",
+					Input:    "test",
+					Weight:   1,
+				},
 			},
 			50,
-		},
-		{
-			SubmissionResult{
-				CompileSuccess: false,
-				RunCorrect:     false,
-			},
-			0,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run("TestCalculateScore", func(t *testing.T) {
-			if got := CalculateScore(test.result); got != test.want {
-				t.Errorf("CalculateScore(%v) = %v, want %v", test.result, got, test.want)
+			if got := CalculateScore(test.result, test.tests); got != test.want {
+				t.Errorf("CalculateScore(%v, %v) = %v, want %v", test.result, test.tests, got, test.want)
 			}
 		})
 	}
@@ -110,34 +129,83 @@ func TestGetFile(t *testing.T) {
 }
 
 func TestParseOgInfo(t *testing.T) {
-	var tests = []struct {
-		path string
-		want AssignmentInfo
-	}{
-		{
-			"test.json",
-			AssignmentInfo{
-				AssignmentId: 1,
+
+	var want = AssignmentInfo{
+		AssignmentId: 1,
+		Tests: []Test{
+			{
+				Expected: "test1/out.txt",
+				Input: "test1/in.txt",
+				Weight: 50,
 			},
-		},
-		{
-			"test2.json",
-			AssignmentInfo{
-				AssignmentId: 2,
+			{
+				Expected: "test2/out.txt",
+				Input: "test2/in.txt",
+				Weight: 10,
+			},
+			{
+				Expected: "test3/out.txt",
+				Input: "test3/in.txt",
+				Weight: 15,
+			},
+			{
+				Expected: "test4/out.txt",
+				Input: "test4/in.txt",
+				Weight: 25,
 			},
 		},
 	}
 
-	for _, test := range tests {
-		t.Run("TestParseOgInfo", func(t *testing.T) {
-			target, _ := os.CreateTemp("", test.path)
-			defer os.Remove(target.Name())
 
-			os.WriteFile(target.Name(), []byte(fmt.Sprintf(`{"assignmentId": %d}`, test.want.AssignmentId)), os.ModeAppend)
 
-			if got := ParseOgInfo(target.Name()); got != test.want {
-				t.Errorf("ParseOgInfo(%v) = %v, want %v", test.path, got, test.want)
-			}
-		})
+	oginfo := `{
+		"AssignmentId": 1,
+		"Tests": [
+			{
+				"Expected": "test1/out.txt",
+				"Input": "test1/in.txt",
+				"Weight": 50
+			},
+			{
+				"Expected": "test2/out.txt",
+				"Input": "test2/in.txt",
+				"Weight": 10
+
+			},
+			{
+				"Expected": "test3/out.txt",
+				"Input": "test3/in.txt",
+				"Weight": 15
+			},
+			{
+				"Expected": "test4/out.txt",
+				"Input": "test4/in.txt",
+				"Weight": 25
+			} 
+		]
+	}`
+
+	tmp, _ := os.CreateTemp("", "test.json")
+	defer os.Remove(tmp.Name())
+
+	os.WriteFile(tmp.Name(), []byte(oginfo), os.ModeAppend)
+	
+	got := ParseOgInfo(tmp.Name())
+
+	if got.AssignmentId != want.AssignmentId {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 	}
+
+	for i := range got.Tests {
+		if got.Tests[i].Expected != want.Tests[i].Expected {
+			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+		}
+		if got.Tests[i].Input != want.Tests[i].Input {
+			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+		}
+		if got.Tests[i].Weight != want.Tests[i].Weight {
+			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+		}
+	}
+
 }

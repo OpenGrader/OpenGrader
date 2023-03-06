@@ -48,10 +48,10 @@ func toDbAssignment(assignment util.SubmissionResult) DbSubmission {
 		Assignment:    assignment.AssignmentId,
 		Student:       assignment.StudentId,
 		IsLate:        false,
-		Score:         int8(util.CalculateScore(assignment)),
+		Score:         assignment.Score,
 		Flags:         []string{},
 		SubmissionLoc: "UNDEF",
-		Feedback:      assignment.Feedback,
+		Feedback:      util.StringSliceToPrettyString(assignment.Feedback),
 	}
 }
 
