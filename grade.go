@@ -421,7 +421,7 @@ func main() {
 		}
 	}
 	for _, id := range results.Order {
-		fmt.Printf("%s: [compileSuccess=%t] [runCorrect=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
+		fmt.Printf("%s: [compileSuccess=%t] [score=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
 	}
 	if !isDryRun {
 		writeFullOutputToDb(supabase, results)
