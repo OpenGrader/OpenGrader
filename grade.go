@@ -164,7 +164,7 @@ func createCsv(results util.SubmissionResults, outfile string) {
 	util.Throw(err)
 
 	writer := csv.NewWriter(file)
-	writer.Write([]string{"student", "compiled", "ran correctly", "feedback"})
+	writer.Write([]string{"student", "compiled", "score", "feedback"})
 	for _, id := range results.Order {
 		result := results.Results[id]
 		row := []string{result.Student, btoa(result.CompileSuccess), fmt.Sprint(result.Score), util.StringSliceToPrettyString(result.Feedback)}
