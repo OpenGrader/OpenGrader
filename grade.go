@@ -404,13 +404,35 @@ func main() {
 
 		for i, test := range ogInfo.Tests {
 			expected := util.GetFile(workDir + "/.spec/" + test.Expected)
-			fmt.Print("Expected Output: ", expected, "\n\n")
+
+			if test.Open {
+				fmt.Printf("Test #%d Expected Output:\n%s\n\n", i, expected)
+			}
+			
 			var input = []string{}
 			if test.Input != "" {
 				input = parseInFile(workDir + "/.spec/" + test.Input)
 			}
 			
 			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, i)
+			
+			
+			var testResult string
+			if result.CompileSuccess && result.Feedback[i] == ""  {
+				testResult = "PASS"
+			} else {
+				testResult = "FAIL"
+			}
+
+			fmt.Printf("Test #%d Result:\n%s\n\n", i, testResult)
+
+			if result.CompileSuccess && test.Open {
+				fmt.Printf("Test #%d Feedback:\n%s\n\n", i, result.Feedback[i])
+			}
+			
+			if !result.CompileSuccess && test.Open {
+				fmt.Printf("Test #%d Feedback:\nCompilation failed.\n\n", i)
+			}
 
 		}
 

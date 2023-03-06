@@ -137,21 +137,25 @@ func TestParseOgInfo(t *testing.T) {
 				Expected: "test1/out.txt",
 				Input: "test1/in.txt",
 				Weight: 50,
+				Open: true,
 			},
 			{
 				Expected: "test2/out.txt",
 				Input: "test2/in.txt",
 				Weight: 10,
+				Open: false,
 			},
 			{
 				Expected: "test3/out.txt",
 				Input: "test3/in.txt",
 				Weight: 15,
+				Open: false,
 			},
 			{
 				Expected: "test4/out.txt",
 				Input: "test4/in.txt",
 				Weight: 25,
+				Open: true,
 			},
 		},
 	}
@@ -164,23 +168,26 @@ func TestParseOgInfo(t *testing.T) {
 			{
 				"Expected": "test1/out.txt",
 				"Input": "test1/in.txt",
-				"Weight": 50
+				"Weight": 50,
+				"Open": true
 			},
 			{
 				"Expected": "test2/out.txt",
 				"Input": "test2/in.txt",
-				"Weight": 10
-
+				"Weight": 10,
+				"Open": false
 			},
 			{
 				"Expected": "test3/out.txt",
 				"Input": "test3/in.txt",
-				"Weight": 15
+				"Weight": 15,
+				"Open": false
 			},
 			{
 				"Expected": "test4/out.txt",
 				"Input": "test4/in.txt",
-				"Weight": 25
+				"Weight": 25,
+				"Open": true
 			} 
 		]
 	}`
@@ -204,6 +211,10 @@ func TestParseOgInfo(t *testing.T) {
 			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 		}
 		if got.Tests[i].Weight != want.Tests[i].Weight {
+			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+		}
+
+		if got.Tests[i].Open != want.Tests[i].Open {
 			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 		}
 	}

@@ -28,6 +28,7 @@ type Test struct {
 	Expected 	string 	`json:"Expected"`
 	Input 		string	`json:"Input"`
 	Weight 		int8		`json:"Weight"`
+	Open 			bool		`json:"Open"`
 }
 
 type AssignmentInfo struct {
