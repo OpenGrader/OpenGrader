@@ -31,12 +31,6 @@ type Test struct {
 	Open 			bool		`json:"Open"`
 }
 
-type Test struct {
-	Expected string `json:"Expected"`
-	Input    string `json:"Input"`
-	Weight   int8   `json:"Weight"`
-}
-
 type AssignmentInfo struct {
 	AssignmentId 	int8		`json:"AssignmentId"`
 	Args 					string	`json:"Args"`
