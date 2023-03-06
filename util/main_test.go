@@ -213,6 +213,26 @@ func TestParseAssignmentOgInfo(t *testing.T) {
 		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 	}
 
+	if got.DryRun != want.DryRun {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.Args != want.Args {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.Language != want.Language {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.OutputFile != want.OutputFile {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.Wall != want.Wall {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
 	for i := range got.Tests {
 		if got.Tests[i].Expected != want.Tests[i].Expected {
 			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
