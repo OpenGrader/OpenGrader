@@ -55,7 +55,6 @@ func Server() {
 			util.Throw(err)
 			supabaseKey := os.Getenv("SUPABASE_KEY")
 
-
 			// Init supabase client
 			supabase := initSupabase()
 
@@ -100,7 +99,7 @@ func Server() {
 			}
 
 			// Prepare request object to send files from form to bucket
-			bucketUrl := supabase.BaseURL + "/" + "storage/v1/object/assignments/" + assignmentId + "/"
+			bucketUrl := supabase.BaseURL + "/storage/v1/object/assignments/" + assignmentId + "/"
 			client := &http.Client{}
 			// Iterate over multipart form files with name="code" and build local submissions directory
 			for _, header := range r.MultipartForm.File["code"] {
@@ -160,7 +159,8 @@ func Server() {
 				results.Order = append(results.Order, dir)
 
 				result.Student = dir
-				
+
+				result.Feedback = make([]string, 1)
 				// find hydratedStudent information from studentId (query param)
 				intStudentId, err := strconv.Atoi(studentId)
 				util.Throw(err)
@@ -181,14 +181,14 @@ func Server() {
 				if assignment.Language == "python3" || assignment.Language == "python" {
 					result.CompileSuccess = true
 
-				 stdout := runInterpreted(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
+					stdout := runInterpreted(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
 					fmt.Printf("Output for %s: %s", result.Student, stdout)
-					result.RunCorrect, result.Feedback = compare(expected, stdout)
+					_, result.Feedback[0] = compare(expected, stdout)
 				} else {
 					result.CompileSuccess = compile(filepath.Join(workDir, dir), assignment.Language, false)
 					if result.CompileSuccess {
 						stdout := runCompiled(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
-						result.RunCorrect, result.Feedback = processOutput(expected, stdout)
+						result.Feedback[0] = processOutput(expected, stdout)
 					}
 				}
 			}
