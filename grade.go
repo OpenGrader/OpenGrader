@@ -325,19 +325,18 @@ func parseInFile(inFile string) (input []string) {
 }
 
 // Grade a single student's submission.
-func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool, testNumber int) {
+func gradeSubmission(result *util.SubmissionResult, dir, workDir, expected string, input []string, testNumber int, info util.AssignmentInfo) {
 	result.Student = dir
 
-	if language == "python" || language == "javascript" {
+	if info.Language == "python" || info.Language == "javascript" {
 		result.CompileSuccess = true
-		stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
-		fmt.Printf("Output For %s: %s", result.Student, stdout)
+		stdout := runInterpreted(filepath.Join(workDir, dir), info.Args, info.Language, input)
+
 		result.Feedback[testNumber] = processOutput(expected, stdout)
-	} else if language == "c++" || language == "java" {
-		result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
+	} else if info.Language == "c++" || info.Language == "java" {
+		result.CompileSuccess = compile(filepath.Join(workDir, dir), info.Language, info.Wall)
 		if result.CompileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
-			fmt.Printf("Output For %s: %s", result.Student, stdout)
+			stdout := runCompiled(filepath.Join(workDir, dir), info.Args, info.Language, input)
 			result.Feedback[testNumber] = processOutput(expected, stdout)
 		}
 	} else {
@@ -366,7 +365,12 @@ func main() {
 		return
 	}
 
-	if isDryRun {
+	assignmentInfo := util.ParseAssignmentOgInfo(workDir + "/.spec/oginfo.json")
+
+	// enforce flag precedence over oginfo file
+	util.EnforceFlagPrecedence(&assignmentInfo, runArgs, outFile, language, wall, isDryRun, passedAssignmentId)
+
+	if assignmentInfo.DryRun || isDryRun {
 		fmt.Println("=== Dry run - output will not be uploaded to database ===")
 	}
 	envErr := godotenv.Load()
@@ -380,15 +384,13 @@ func main() {
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
 
-	ogInfo := util.ParseOgInfo(workDir + "/.spec/oginfo.json")
 	var assignmentId int8
-
 	// determine which assignment id to use, flag takes precedence over file
 	if passedAssignmentId == 0 {
-		if ogInfo.AssignmentId == 0 {
+		if assignmentInfo.AssignmentId == 0 {
 			assignmentId = 1
 		} else {
-			assignmentId = ogInfo.AssignmentId
+			assignmentId = assignmentInfo.AssignmentId
 		}
 	} else {
 		assignmentId = int8(passedAssignmentId)
@@ -399,51 +401,84 @@ func main() {
 
 	for _, dir := range dirs {
 		var result util.SubmissionResult
-		results.Results[dir] = &result
-		results.Order = append(results.Order, dir)
-		result.Student = dir
+		studentInfo := util.ParseStudentOgInfo(workDir + "/" + dir + "/oginfo.json")
+
+		if studentInfo.StudentEuid != "" {
+			result.Student = studentInfo.StudentEuid
+		} else {
+			result.Student = dir
+		}
+
+		results.Results[result.Student] = &result
+		results.Order = append(results.Order, result.Student)
+
 		result.AssignmentId = assignmentId
 		// find hydratedStudent information from EUID (dirname)
-		hydratedStudent := db.GetStudentByEuid(supabase, dir)
+		hydratedStudent := db.GetStudentByEuid(supabase, result.Student)
 		// if student doesn't exist, commit to db
 		if hydratedStudent.Id == 0 {
-			hydratedStudent.Euid = dir
-			hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
+			hydratedStudent.Euid = result.Student
 
-			fmt.Printf("%8s: ", dir)
+			if studentInfo.StudentEmail != "" {
+				hydratedStudent.Email = studentInfo.StudentEmail
+			} else {
+				hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", result.Student) // all students have euid@unt.edu
+			}
+
+			fmt.Printf("%8s: ", result.Student)
 			fmt.Printf("%+v\n", hydratedStudent)
 
-			if !isDryRun {
+			if !assignmentInfo.DryRun {
 				hydratedStudent.Save(supabase)
 			}
 		}
 
 		result.StudentId = hydratedStudent.Id
 
-		result.Feedback = make([]string, len(ogInfo.Tests))
+		result.Feedback = make([]string, len(assignmentInfo.Tests))
 
-		for i, test := range ogInfo.Tests {
+		for i, test := range assignmentInfo.Tests {
 			expected := util.GetFile(workDir + "/.spec/" + test.Expected)
-			fmt.Print("Expected Output: ", expected, "\n\n")
+
+			fmt.Printf("Test #%d Expected Output:\n%s\n\n", i+1, expected)
+
 			var input = []string{}
 			if test.Input != "" {
 				input = parseInFile(workDir + "/.spec/" + test.Input)
 			}
 
-			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, i)
+			gradeSubmission(&result, dir, workDir, expected, input, i, assignmentInfo)
+
+			var testResult string
+			if result.CompileSuccess && result.Feedback[i] == "" {
+				testResult = "PASS"
+			} else {
+				testResult = "FAIL"
+			}
+
+			fmt.Printf("Test #%d Result:\n%s\n\n", i+1, testResult)
+
+			if result.CompileSuccess && result.Feedback[i] != "" {
+				fmt.Printf("Test #%d Feedback:\n%s\n\n", i+1, result.Feedback[i])
+			}
+
+			if !result.CompileSuccess {
+				fmt.Printf("Test #%d Feedback:\nCompilation failed.\n\n", i+1)
+			}
 
 		}
 
 		// If successfully compiled, calculate score. Otherwise, score is 0. Score is calculated by lack of feedback.
 		// So, if something didn't compile, it would receive a score of 100 and we do not want that.
 		if result.CompileSuccess {
-			result.Score = int8(util.CalculateScore(result, ogInfo.Tests))
+			result.Score = int8(util.CalculateScore(result, assignmentInfo.Tests))
 		}
 	}
 	for _, id := range results.Order {
-		fmt.Printf("%s: [compileSuccess=%t] [score=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
+		fmt.Printf("%s: [compileSuccess=%t] [Score=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
+
 	}
-	if !isDryRun {
+	if !assignmentInfo.DryRun {
 		writeFullOutputToDb(supabase, results)
 	}
 	createCsv(results, outFile)

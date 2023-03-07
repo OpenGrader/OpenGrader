@@ -128,57 +128,74 @@ func TestGetFile(t *testing.T) {
 	}
 }
 
-func TestParseOgInfo(t *testing.T) {
+func TestParseAssignmentOgInfo(t *testing.T) {
 
 	var want = AssignmentInfo{
 		AssignmentId: 1,
+		Args:         "",
+		DryRun:       true,
+		Language:     "c++",
+		OutputFile:   "Report1.csv",
+		Wall:         false,
 		Tests: []Test{
 			{
 				Expected: "test1/out.txt",
 				Input:    "test1/in.txt",
 				Weight:   50,
+				Open:     true,
 			},
 			{
 				Expected: "test2/out.txt",
 				Input:    "test2/in.txt",
 				Weight:   10,
+				Open:     false,
 			},
 			{
 				Expected: "test3/out.txt",
 				Input:    "test3/in.txt",
 				Weight:   15,
+				Open:     false,
 			},
 			{
 				Expected: "test4/out.txt",
 				Input:    "test4/in.txt",
 				Weight:   25,
+				Open:     true,
 			},
 		},
 	}
 
 	oginfo := `{
 		"AssignmentId": 1,
+		"Args": "",
+		"DryRun": true,
+		"Language": "c++",
+		"OutputFile": "Report1.csv",
+		"Wall": false,
 		"Tests": [
 			{
 				"Expected": "test1/out.txt",
 				"Input": "test1/in.txt",
-				"Weight": 50
+				"Weight": 50,
+				"Open": true
 			},
 			{
 				"Expected": "test2/out.txt",
 				"Input": "test2/in.txt",
-				"Weight": 10
-
+				"Weight": 10,
+				"Open": false
 			},
 			{
 				"Expected": "test3/out.txt",
 				"Input": "test3/in.txt",
-				"Weight": 15
+				"Weight": 15,
+				"Open": false
 			},
 			{
 				"Expected": "test4/out.txt",
 				"Input": "test4/in.txt",
-				"Weight": 25
+				"Weight": 25,
+				"Open": true
 			} 
 		]
 	}`
@@ -188,9 +205,29 @@ func TestParseOgInfo(t *testing.T) {
 
 	os.WriteFile(tmp.Name(), []byte(oginfo), os.ModeAppend)
 
-	got := ParseOgInfo(tmp.Name())
+	got := ParseAssignmentOgInfo(tmp.Name())
 
 	if got.AssignmentId != want.AssignmentId {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.DryRun != want.DryRun {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.Args != want.Args {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.Language != want.Language {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.OutputFile != want.OutputFile {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.Wall != want.Wall {
 		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 	}
 
@@ -204,6 +241,43 @@ func TestParseOgInfo(t *testing.T) {
 		if got.Tests[i].Weight != want.Tests[i].Weight {
 			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 		}
+		if got.Tests[i].Open != want.Tests[i].Open {
+			t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+		}
+	}
+
+}
+
+func TestParseStudentInfo(t *testing.T) {
+	var want = StudentInfo{
+		StudentEuid:  "jjd1234",
+		StudentName:  "John Doe",
+		StudentEmail: "JohnDoe@my.unt.edu",
+	}
+
+	studentinfo := `{
+		"StudentEuid": "jjd1234",
+		"StudentName": "John Doe",
+		"StudentEmail": "JohnDoe@my.unt.edu"
+	}`
+
+	tmp, _ := os.CreateTemp("", "test.json")
+	defer os.Remove(tmp.Name())
+
+	os.WriteFile(tmp.Name(), []byte(studentinfo), os.ModeAppend)
+
+	got := ParseStudentOgInfo(tmp.Name())
+
+	if got.StudentEuid != want.StudentEuid {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.StudentName != want.StudentName {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
+	}
+
+	if got.StudentEmail != want.StudentEmail {
+		t.Errorf("ParseOgInfo(%v) = %v, want %v", tmp.Name(), got, want)
 	}
 
 }
