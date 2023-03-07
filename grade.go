@@ -325,18 +325,18 @@ func parseInFile(inFile string) (input []string) {
 }
 
 // Grade a single student's submission.
-func gradeSubmission(result *util.SubmissionResult, dir, workDir, runArgs, expected, language string, input []string, wall bool, testNumber int) {
+func gradeSubmission(result *util.SubmissionResult, dir, workDir, expected string, input []string, testNumber int, info util.AssignmentInfo) {
 	result.Student = dir
 
-	if language == "python" || language == "javascript" {
+	if info.Language == "python" || info.Language == "javascript" {
 		result.CompileSuccess = true
-		stdout := runInterpreted(filepath.Join(workDir, dir), runArgs, language, input)
+		stdout := runInterpreted(filepath.Join(workDir, dir), info.Args, info.Language, input)
 
 		result.Feedback[testNumber] = processOutput(expected, stdout)
-	} else if language == "c++" || language == "java" {
-		result.CompileSuccess = compile(filepath.Join(workDir, dir), language, wall)
+	} else if info.Language == "c++" || info.Language == "java" {
+		result.CompileSuccess = compile(filepath.Join(workDir, dir), info.Language, info.Wall)
 		if result.CompileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), runArgs, language, input)
+			stdout := runCompiled(filepath.Join(workDir, dir), info.Args, info.Language, input)
 			result.Feedback[testNumber] = processOutput(expected, stdout)
 		}
 	} else {
@@ -367,22 +367,8 @@ func main() {
 
 	assignmentInfo := util.ParseAssignmentOgInfo(workDir + "/.spec/oginfo.json")
 
-	if language == "" {
-		language = assignmentInfo.Language
-	}
-
-	if runArgs == "" {
-		runArgs = assignmentInfo.Args
-	}
-
-	if !wall {
-		wall = assignmentInfo.Wall
-	}
-
-	// precendence is flipped on this one bc we do not want outFile's default value taking precedence over a set val in oginfo.json
-	if assignmentInfo.OutputFile != "" {
-		outFile = assignmentInfo.OutputFile
-	}
+	// enforce flag precedence over oginfo file
+	util.EnforceFlagPrecedence(&assignmentInfo, runArgs, outFile, language, wall, isDryRun, passedAssignmentId)
 
 	if assignmentInfo.DryRun || isDryRun {
 		fmt.Println("=== Dry run - output will not be uploaded to database ===")
@@ -442,7 +428,7 @@ func main() {
 			fmt.Printf("%8s: ", result.Student)
 			fmt.Printf("%+v\n", hydratedStudent)
 
-			if !isDryRun || !assignmentInfo.DryRun {
+			if !assignmentInfo.DryRun {
 				hydratedStudent.Save(supabase)
 			}
 		}
@@ -454,16 +440,14 @@ func main() {
 		for i, test := range assignmentInfo.Tests {
 			expected := util.GetFile(workDir + "/.spec/" + test.Expected)
 
-			if test.Open {
-				fmt.Printf("Test #%d Expected Output:\n%s\n\n", i+1, expected)
-			}
+			fmt.Printf("Test #%d Expected Output:\n%s\n\n", i+1, expected)
 
 			var input = []string{}
 			if test.Input != "" {
 				input = parseInFile(workDir + "/.spec/" + test.Input)
 			}
 
-			gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, i)
+			gradeSubmission(&result, dir, workDir, expected, input, i, assignmentInfo)
 
 			var testResult string
 			if result.CompileSuccess && result.Feedback[i] == "" {
@@ -474,11 +458,11 @@ func main() {
 
 			fmt.Printf("Test #%d Result:\n%s\n\n", i+1, testResult)
 
-			if result.CompileSuccess && test.Open && result.Feedback[i] != "" {
+			if result.CompileSuccess && result.Feedback[i] != "" {
 				fmt.Printf("Test #%d Feedback:\n%s\n\n", i+1, result.Feedback[i])
 			}
 
-			if !result.CompileSuccess && test.Open {
+			if !result.CompileSuccess {
 				fmt.Printf("Test #%d Feedback:\nCompilation failed.\n\n", i+1)
 			}
 
@@ -494,7 +478,7 @@ func main() {
 		fmt.Printf("%s: [compileSuccess=%t] [Score=%d] \n", id, results.Results[id].CompileSuccess, results.Results[id].Score)
 
 	}
-	if !isDryRun && !assignmentInfo.DryRun {
+	if !assignmentInfo.DryRun {
 		writeFullOutputToDb(supabase, results)
 	}
 	createCsv(results, outFile)

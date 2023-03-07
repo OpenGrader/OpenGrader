@@ -386,14 +386,12 @@ func TestGradeSubmission(t *testing.T) {
 	}
 
 	// run and validate
-	runArgs := ""
+	info := util.AssignmentInfo{Args: "", Language: "c++", Wall: false}
 	expected := "Hello World!\n"
-	language := "c++"
 	input := []string{""}
-	wall := false
 	result := util.SubmissionResult{Student: "jgg0144", CompileSuccess: false, Score: 0, Feedback: []string{""}, AssignmentId: 1, StudentId: 1}
 
-	gradeSubmission(&result, dir, workDir, runArgs, expected, language, input, wall, 0)
+	gradeSubmission(&result, dir, workDir, expected, input, 0, info)
 
 	if !result.CompileSuccess {
 		t.Fatalf("Compile error")

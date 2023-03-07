@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -103,6 +104,49 @@ func ParseStudentOgInfo(path string) (info StudentInfo) {
 	Throw(unmarshalErr)
 
 	return
+}
+
+func EnforceFlagPrecedence(info *AssignmentInfo, runArgs, outFile, language string, wall, isDryRun bool, assignmentId int) {
+	if isFlagPassed("args") {
+		fmt.Println("args passed")
+		info.Args = runArgs
+	}
+
+	if isFlagPassed("out") {
+		fmt.Println("out passed")
+		info.OutputFile = outFile
+	}
+
+	if isFlagPassed("lang") {
+		fmt.Println("lang passed")
+		info.Language = language
+	}
+
+	if isFlagPassed("Wall") {
+		fmt.Println("Wall passed")
+		info.Wall = wall
+	}
+
+	if isFlagPassed("dry-run") {
+		fmt.Println("dry-run passed")
+		info.DryRun = isDryRun
+	}
+
+	if isFlagPassed("assignment-id") {
+		fmt.Println("assignment-id passed")
+		info.AssignmentId = int8(assignmentId)
+	}
+}
+
+// helper method to check if a flag has been passed | src: https://stackoverflow.com/questions/35809252/check-if-flag-was-provided-in-go
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
 
 // Helper method to turn string slice into a readable, new line separated string that will print well in the report
