@@ -3,6 +3,7 @@
 package main
 
 import (
+	"archive/zip"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -357,6 +358,15 @@ func writeFullOutputToDb(supabase *supa.Client, results util.SubmissionResults) 
 	}
 }
 
+func unzipDir(source string) error {
+	reader, err := zip.OpenReader(source)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	return nil
+}
+
 func main() {
 	workDir, runArgs, outFile, language, wall, isDryRun, server, passedAssignmentId := parseFlags()
 	if server {
@@ -383,6 +393,7 @@ func main() {
 
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
+	// dirs holds the student files where zip files should be checked for
 
 	var assignmentId int8
 	// determine which assignment id to use, flag takes precedence over file
