@@ -262,7 +262,10 @@ func TestRunCompiled(t *testing.T) {
 	}
 
 	expected := "Hello world!\n"
-	actual := runCompiled(dir, tmp.Name(), "c++", []string{})
+
+	c := make(chan string)
+	go runCompiled(dir, tmp.Name(), "c++", []string{}, c)
+	actual := <-c
 
 	if expected != actual {
 		t.Errorf("Expected text did not match actual [expected=%#v] [actual=%#v]", expected, actual)

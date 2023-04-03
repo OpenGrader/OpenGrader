@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -27,6 +28,11 @@ type CmdOutput struct {
 	savedOutput []byte
 }
 
+// Emulates stderr, stores bytes written.
+type CmdError struct {
+	savedOutput []byte
+}
+
 // Enum to contain the different types of directives that could be used in spec file
 type directive int
 
@@ -39,6 +45,11 @@ const (
 // Allows capturing stdin by setting cmd.Stdin to an instance of CmdOutput
 func (out *CmdOutput) Write(p []byte) (n int, err error) {
 	out.savedOutput = append(out.savedOutput, p...)
+	return 0, nil
+}
+
+func (e *CmdError) Write(p []byte) (n int, err error) {
+	e.savedOutput = append(e.savedOutput, p...)
 	return 0, nil
 }
 
@@ -208,8 +219,7 @@ func compile(dir, language string, wall bool) bool {
 }
 
 // Run the compiled program in directory $dir with command-line args $args
-func runCompiled(dir, args, language string, input []string) string {
-	var stdout CmdOutput
+func runCompiled(dir, args, language string, input []string, c chan string) {
 	var cmd *exec.Cmd
 	var err error
 	os := runtime.GOOS
@@ -225,8 +235,9 @@ func runCompiled(dir, args, language string, input []string) string {
 		}
 	}
 	cmd.Dir = dir
-	cmd.Stdout = &stdout
 
+	stdout, err := cmd.StdoutPipe()
+	util.Throw(err)
 	stdin, err := cmd.StdinPipe()
 	util.Throw(err)
 
@@ -234,14 +245,26 @@ func runCompiled(dir, args, language string, input []string) string {
 	util.Throw(cmdErr)
 
 	processInput(stdin, input)
+
+	outputBuffer := new(bytes.Buffer)
+
+	go func() {
+		_, err := io.Copy(outputBuffer, stdout)
+		util.Throw(err)
+	}()
+
 	waitErr := cmd.Wait()
 
 	// ignore short write errors since this is expected
 	if waitErr != nil && waitErr.Error() != "short write" {
-		panic(waitErr)
+		util.Throw(waitErr)
 	}
 
-	return string(stdout.savedOutput)
+	// Check subprocess exit code
+	exitCode := cmd.ProcessState.ExitCode()
+	fmt.Println("Exit code: ", exitCode)
+
+	c <- outputBuffer.String()
 }
 
 func runInterpreted(dir, args, language string, input []string) string {
@@ -336,7 +359,9 @@ func gradeSubmission(result *util.SubmissionResult, dir, workDir, expected strin
 	} else if info.Language == "c++" || info.Language == "java" {
 		result.CompileSuccess = compile(filepath.Join(workDir, dir), info.Language, info.Wall)
 		if result.CompileSuccess {
-			stdout := runCompiled(filepath.Join(workDir, dir), info.Args, info.Language, input)
+			c := make(chan string)
+			go runCompiled(filepath.Join(workDir, dir), info.Args, info.Language, input, c)
+			stdout := <-c
 			result.Feedback[testNumber] = processOutput(expected, stdout)
 		}
 	} else {
