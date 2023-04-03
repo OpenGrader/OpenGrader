@@ -192,7 +192,9 @@ func Server() {
 				} else {
 					result.CompileSuccess = compile(filepath.Join(workDir, dir), assignment.Language, false)
 					if result.CompileSuccess {
-						stdout := runCompiled(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
+						c := make(chan string)
+						go runCompiled(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input, c)
+						stdout := <-c
 						result.Feedback[0] = processOutput(expected, stdout)
 					}
 				}
