@@ -3,6 +3,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/csv"
 	"flag"
@@ -382,6 +383,76 @@ func writeFullOutputToDb(supabase *supa.Client, results util.SubmissionResults) 
 	}
 }
 
+func checkForZip(workDir string, dir string) {
+	workDir = workDir + "/" + dir
+	if err := os.Chdir(workDir); err != nil {
+		panic(err)
+	}
+
+	cmd := exec.Command("ls", ".")
+
+	output, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range strings.Split(string(output), "\n") {
+		if strings.Contains(file, ".zip") {
+			zipPath := workDir + "/" + file
+			if err := unzipDir(zipPath, workDir); err != nil {
+				fmt.Printf("Error extracting %s: %s\n", zipPath, err)
+			}
+			// remove the zip file
+			if err := os.Remove(zipPath); err != nil {
+				fmt.Printf("Error removing %s: %s\n", zipPath, err)
+			}
+		}
+	}
+}
+
+func unzipDir(zipPath string, outputDir string) error {
+	// open the zip archive
+	reader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	// extract each file in the archive
+	for _, file := range reader.File {
+		fmt.Printf("Extracting file: %s\n", file.Name)
+		if err := extractFile(file, outputDir); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+func extractFile(file *zip.File, outputDir string) error {
+	// open the file in the archive
+	rc, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	// create the output file in the output directory
+	outputPath := filepath.Join(outputDir, file.Name)
+	output, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	// write the file contents to the output file
+	_, err = io.Copy(output, rc)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	workDir, runArgs, outFile, language, wall, isDryRun, server, passedAssignmentId := parseFlags()
 	if server {
@@ -408,6 +479,7 @@ func main() {
 
 	out, _ := cmd.Output()
 	dirs := strings.Fields(string(out[:]))
+	// dirs holds the student files where zip files should be checked for
 
 	var assignmentId int8
 	// determine which assignment id to use, flag takes precedence over file
@@ -425,6 +497,9 @@ func main() {
 	results.Results = make(map[string]*util.SubmissionResult)
 
 	for _, dir := range dirs {
+		// Find any zips, unzip to current directory, then delete the zip
+		checkForZip(workDir, dir)
+
 		var result util.SubmissionResult
 		studentInfo := util.ParseStudentOgInfo(workDir + "/" + dir + "/oginfo.json")
 
