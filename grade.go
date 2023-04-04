@@ -503,8 +503,6 @@ func main() {
 		var result util.SubmissionResult
 		studentInfo := util.ParseStudentOgInfo(workDir + "/" + dir + "/oginfo.json")
 
-		
-
 		if studentInfo.StudentEuid != "" {
 			result.Student = studentInfo.StudentEuid
 		} else {
