@@ -497,11 +497,13 @@ func main() {
 	results.Results = make(map[string]*util.SubmissionResult)
 
 	for _, dir := range dirs {
+		// Find any zips, unzip to current directory, then delete the zip
+		checkForZip(workDir, dir)
+
 		var result util.SubmissionResult
 		studentInfo := util.ParseStudentOgInfo(workDir + "/" + dir + "/oginfo.json")
 
-		// Find any zips, unzip to current directory, then delete the zip
-		checkForZip(workDir, dir)
+		
 
 		if studentInfo.StudentEuid != "" {
 			result.Student = studentInfo.StudentEuid
