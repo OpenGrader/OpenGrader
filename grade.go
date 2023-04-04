@@ -3,8 +3,8 @@
 package main
 
 import (
-	"bytes"
 	"archive/zip"
+	"bytes"
 	"encoding/csv"
 	"flag"
 	"fmt"
