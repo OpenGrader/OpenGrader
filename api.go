@@ -214,6 +214,55 @@ func Server() {
 			// Write response table to user
 			fmt.Fprint(w, resTable)
 
+		case "GET":
+			// Load environment variables
+			err := godotenv.Load(".env")
+			util.Throw(err)
+
+			// Init supabase client
+			supabase := initSupabase()
+			
+			// Read request body for assignmentId and studentId
+			// Extract args + assignment ID from URL using req.URL object
+			// This will assignment ID will be used to grab the spec/out.txt + spec/in.txt
+			assignmentId := r.URL.Query().Get("assignment")
+			if assignmentId != "" {
+				fmt.Printf("Assigment ID is: %s\n", assignmentId)
+			} else {
+				fmt.Println("No assignment ID is passed")
+				w.WriteHeader(http.StatusBadRequest + 20)
+				return
+			}
+
+			// Get student ID. Repeat same functionality as above
+			studentId := r.URL.Query().Get("student")
+			if assignmentId != "" {
+				fmt.Printf("Student ID is: %s\n", studentId)
+			} else {
+				fmt.Println("No student ID is passed")
+				w.WriteHeader(http.StatusBadRequest + 21)
+				return
+			}
+
+			// Get assignment tests for supabase
+			
+
+			// Prepare local directory
+			rootPathToDir, err := os.Getwd()
+			util.Throw(err)
+			workDir := rootPathToDir + "/submissions/" + assignmentId
+			err = os.MkdirAll(workDir+"/.spec/", 0766)
+			if err != nil {
+				log.Fatalf("Error:\t%v\n", err)
+			}
+
+			err = os.MkdirAll(workDir+"/"+studentId+"/", 0766)
+			if err != nil {
+				log.Fatalf("Error:\t%v\n", err)
+			}
+
+
+		
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
