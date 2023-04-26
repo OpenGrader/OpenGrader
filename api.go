@@ -24,9 +24,9 @@ type AssigmentTableQuery struct {
 }
 
 type TestCase struct {
-	Input_File 	string 	`json:"input_file"`
-	Output_File string 	`json:"output_file"`
-	Weight      int8 	 	`json:"weight"`
+	Input_File  string `json:"input_file"`
+	Output_File string `json:"output_file"`
+	Weight      int8   `json:"weight"`
 }
 
 type StudentSubmission struct {
@@ -45,7 +45,7 @@ func Server() {
 	http.HandleFunc("/grade", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
-			
+
 			// Read request body for assignmentId and studentId
 			// Extract args + assignment ID from URL using req.URL object
 			// This will assignment ID will be used to grab the spec/out.txt + spec/in.txt
@@ -87,12 +87,12 @@ func Server() {
 			inputs := make([]string, len(tests))
 			outputs := make([]string, len(tests))
 			for i, test := range tests {
-				err = os.WriteFile(fmt.Sprint(workDir,"/.spec/",i,"_in.txt"), getFileContentFromURL(testCaseBucket+test.Input_File), 0666)
+				err = os.WriteFile(fmt.Sprint(workDir, "/.spec/", i, "_in.txt"), getFileContentFromURL(testCaseBucket+test.Input_File), 0666)
 				util.Throw(err)
-				inputs[i] = fmt.Sprint(i,"_in.txt")
-				err = os.WriteFile(fmt.Sprint(workDir,"/.spec/",i,"_out.txt"), getFileContentFromURL(testCaseBucket+test.Output_File), 0666)
+				inputs[i] = fmt.Sprint(i, "_in.txt")
+				err = os.WriteFile(fmt.Sprint(workDir, "/.spec/", i, "_out.txt"), getFileContentFromURL(testCaseBucket+test.Output_File), 0666)
 				util.Throw(err)
-				outputs[i] = fmt.Sprint(i,"_out.txt")
+				outputs[i] = fmt.Sprint(i, "_out.txt")
 			}
 
 			// Prepare student directory
@@ -107,7 +107,7 @@ func Server() {
 			err = supabase.DB.From("student_Submission").Select("file_Path, file_Name").Eq("user_ID", studentId).Eq("assignment_ID", assignmentId).Execute(&submission)
 			util.Throw(err)
 			for _, file := range submission {
-				err = os.WriteFile(fmt.Sprint(workDir,"/",studentId,"/",file.FileName), getFileContentFromURL(assignmentBucket+file.FilePath), 0666)
+				err = os.WriteFile(fmt.Sprint(workDir, "/", studentId, "/", file.FileName), getFileContentFromURL(assignmentBucket+file.FilePath), 0666)
 				util.Throw(err)
 			}
 
@@ -133,7 +133,7 @@ func Server() {
 			// set the assignment info
 			assignmentInfo.Language = assignmentTableQuery[0].Language
 			assignmentInfo.Args = assignmentTableQuery[0].Args
-			
+
 			// no walls, only doors
 			assignmentInfo.Wall = false
 
