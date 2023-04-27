@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -25,11 +23,30 @@ type AssigmentTableQuery struct {
 	Args        string `json:"args"`
 }
 
+type TestCase struct {
+	Input_File  string `json:"input_file"`
+	Output_File string `json:"output_file"`
+	Weight      int8   `json:"weight"`
+}
+
+type StudentSubmission struct {
+	FilePath string `json:"file_Path"`
+	FileName string `json:"file_Name"`
+}
+
 func Server() {
+	// Load environment variables
+	err := godotenv.Load(".env")
+	util.Throw(err)
+
+	// Init supabase client
+	supabase := initSupabase()
 
 	http.HandleFunc("/grade", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-		case "POST":
+		case "GET":
+
+			// Read request body for assignmentId and studentId
 			// Extract args + assignment ID from URL using req.URL object
 			// This will assignment ID will be used to grab the spec/out.txt + spec/in.txt
 			assignmentId := r.URL.Query().Get("assignment")
@@ -43,27 +60,18 @@ func Server() {
 
 			// Get student ID. Repeat same functionality as above
 			studentId := r.URL.Query().Get("student")
-			if assignmentId != "" {
+			if studentId != "" {
 				fmt.Printf("Student ID is: %s\n", studentId)
 			} else {
 				fmt.Println("No student ID is passed")
 				w.WriteHeader(http.StatusBadRequest + 21)
 				return
 			}
-			// Load environment variables
-			err := godotenv.Load(".env")
+
+			// Get assignment tests for supabase
+			var tests []TestCase
+			err = supabase.DB.From("test_cases").Select("input_file, output_file, weight").Eq("assignment_id", assignmentId).Execute(&tests)
 			util.Throw(err)
-			supabaseKey := os.Getenv("SUPABASE_KEY")
-
-			// Init supabase client
-			supabase := initSupabase()
-
-			// Get spec file based on assignment ID
-			assignment := db.GetAssignment(supabase, assignmentId)
-
-			// Get spec file contents located at the links retrieved from supabase
-			inFileContent := getFileContentFromURL(assignment.InputFile)
-			outFileContent := getFileContentFromURL(assignment.OutputFile)
 
 			// Prepare local directory
 			rootPathToDir, err := os.Getwd()
@@ -74,146 +82,97 @@ func Server() {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
+			// Put tests cases in .spec folder
+			testCaseBucket := supabase.BaseURL + "/storage/v1/object/spec-storage/"
+			inputs := make([]string, len(tests))
+			outputs := make([]string, len(tests))
+			for i, test := range tests {
+				err = os.WriteFile(fmt.Sprint(workDir, "/.spec/", i, "_in.txt"), getFileContentFromURL(testCaseBucket+test.Input_File), 0666)
+				util.Throw(err)
+				inputs[i] = fmt.Sprint(i, "_in.txt")
+				err = os.WriteFile(fmt.Sprint(workDir, "/.spec/", i, "_out.txt"), getFileContentFromURL(testCaseBucket+test.Output_File), 0666)
+				util.Throw(err)
+				outputs[i] = fmt.Sprint(i, "_out.txt")
+			}
+
+			// Prepare student directory
 			err = os.MkdirAll(workDir+"/"+studentId+"/", 0766)
 			if err != nil {
 				log.Fatalf("Error:\t%v\n", err)
 			}
 
-			// Create local spec files
-			err = os.WriteFile(workDir+"/.spec/in.txt", inFileContent, 0666)
-			if err != nil {
-				log.Fatalf("Error:\t%v\n", err)
+			// Get student submission from supabase
+			var submission []StudentSubmission
+			assignmentBucket := supabase.BaseURL + "/storage/v1/object/assignments/"
+			err = supabase.DB.From("student_Submission").Select("file_Path, file_Name").Eq("user_ID", studentId).Eq("assignment_ID", assignmentId).Execute(&submission)
+			util.Throw(err)
+			for _, file := range submission {
+				err = os.WriteFile(fmt.Sprint(workDir, "/", studentId, "/", file.FileName), getFileContentFromURL(assignmentBucket+file.FilePath), 0666)
+				util.Throw(err)
 			}
 
-			err = os.WriteFile(workDir+"/.spec/out.txt", outFileContent, 0666)
-			if err != nil {
-				log.Fatalf("Error:\t%v\n", err)
-			}
-
-			// calling this function parses the request body and fills the req.MultipartForm field
-			err = r.ParseMultipartForm(32 << 20) // 32 << 20 = 32 MB for max memory to hold the files
-			if err != nil {
-				log.Fatalf("Error:\t%v\n", err)
-				w.WriteHeader(http.StatusBadRequest + 21)
-				return
-			}
-
-			// Prepare request object to send files from form to bucket
-			bucketUrl := supabase.BaseURL + "/storage/v1/object/assignments/" + assignmentId + "/"
-			client := &http.Client{}
-			// Iterate over multipart form files with name="code" and build local submissions directory
-			for _, header := range r.MultipartForm.File["code"] {
-				file, openErr := header.Open()
-				util.Throw(openErr)
-				// Save locally
-				localFile, createErr := os.Create("./submissions/" + assignmentId + "/" + studentId + "/" + header.Filename)
-				util.Throw(createErr)
-
-				_, copyErr := io.Copy(localFile, file)
-				util.Throw(copyErr)
-
-				// Gather file bytes for bucket upload body
-				// Rewind file pointer to start
-				_, seekErr := file.Seek(0, io.SeekStart)
-				util.Throw(seekErr)
-
-				fileBytes, readErr := io.ReadAll(file)
-				util.Throw(readErr)
-
-				bucketReq, reqErr := http.NewRequest(
-					http.MethodPost,
-					bucketUrl+studentId+"_"+header.Filename,
-					bytes.NewReader(fileBytes),
-				)
-				util.Throw(reqErr)
-				bucketReq.Header.Add("apikey", supabaseKey)
-				bucketReq.Header.Add("Authorization", "Bearer "+supabaseKey)
-
-				// Send to bucket
-				storageResponse, doErr := client.Do(bucketReq)
-				util.Throw(doErr)
-				if storageResponse.StatusCode != http.StatusOK {
-					fmt.Println("Upload status code: ", storageResponse.StatusCode)
-					fmt.Printf("Upload error: %v\n", storageResponse.Body)
-				}
-
-				file.Close()
-			}
-
-			// All pieces to forge the great weapon acquired. Assemble.
-			// Almost entirely copy and pasted from main(). Should refactor.
+			// Directory setup, now grade
 			cmd := exec.Command("ls")
 			cmd.Dir = workDir
 
 			out, _ := cmd.Output()
 			dirs := strings.Fields(string(out[:]))
 
-			input := parseInFile(workDir + "/.spec/in.txt")
-			expected := util.GetFile(workDir + "/.spec/out.txt")
+			// initialize AssignmentInfo
+			var assignmentInfo util.AssignmentInfo
 
+			// convert assignmentid string to int8
 			intAssignmentId, err := strconv.Atoi(assignmentId)
 			util.Throw(err)
+			assignmentInfo.AssignmentId = int8(intAssignmentId)
 
-			var results util.SubmissionResults
-			results.Results = make(map[string]*util.SubmissionResult)
-			resTable := ""
+			// get the rest of the assignment info from supabase (just the lang and args)
+			var assignmentTableQuery []AssigmentTableQuery
+			err = supabase.DB.From("assignment").Select("language, args").Eq("id", assignmentId).Execute(&assignmentTableQuery)
+			util.Throw(err)
+			// set the assignment info
+			assignmentInfo.Language = assignmentTableQuery[0].Language
+			assignmentInfo.Args = assignmentTableQuery[0].Args
+
+			// no walls, only doors
+			assignmentInfo.Wall = false
+
 			for _, dir := range dirs {
+				checkForZip(workDir, dir)
+
 				var result util.SubmissionResult
-				results.Results[dir] = &result
-				results.Order = append(results.Order, dir)
-
-				result.Student = dir
-
-				result.Feedback = make([]string, 1)
-
-				// find hydratedStudent information from studentId (query param)
 				intStudentId, err := strconv.Atoi(studentId)
 				util.Throw(err)
-				hydratedStudent := db.GetStudentById(supabase, int8(intStudentId))
+				studentInfo := db.GetStudentById(supabase, int8(intStudentId))
+				result.Student = studentInfo.Euid
 
-				// if student doesn't exist, commit to db
-				if hydratedStudent.Id == 0 {
-					hydratedStudent.Euid = dir
-					hydratedStudent.Email = fmt.Sprintf("%s@unt.edu", dir) // all students have euid@unt.edu
-
-					fmt.Printf("%8s: ", dir)
-					fmt.Printf("%+v\n", hydratedStudent)
-
-				}
-				result.StudentId = hydratedStudent.Id
 				result.AssignmentId = int8(intAssignmentId)
+				result.StudentId = int8(intStudentId)
+				result.Feedback = make([]string, len(tests))
 
-				if assignment.Language == "python3" || assignment.Language == "python" {
-					result.CompileSuccess = true
+				for i := range tests {
+					expected := util.GetFile(workDir + "/.spec/" + outputs[i])
 
-					stdout := runInterpreted(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input)
-					fmt.Printf("Output for %s: %s", result.Student, stdout)
-					_, result.Feedback[0] = compare(expected, stdout)
-				} else {
-					result.CompileSuccess = compile(filepath.Join(workDir, dir), assignment.Language, false)
-					if result.CompileSuccess {
-						c := make(chan string)
-						go runCompiled(filepath.Join(workDir, dir), assignment.Args, assignment.Language, input, c)
-						stdout := <-c
-						result.Feedback[0] = processOutput(expected, stdout)
-					}
+					fmt.Printf("Running test %d\nExpected Output: %s\n", i, expected)
+
+					input := parseInFile(workDir + "/.spec/" + inputs[i])
+					gradeSubmission(&result, dir, workDir, expected, input, i, assignmentInfo)
 				}
+
+				if result.CompileSuccess {
+					result.Score = int8(calculateScoreMod(result, tests))
+				} else {
+					result.Score = 0
+				}
+				// Upload to DB
+				db.SaveResult(supabase, &result)
 			}
 
-			for _, id := range results.Order {
-				resTable = resTable + fmt.Sprintf("Student %s feedback: \n%s\n", id, results.Results[id].Feedback)
-			}
-
-			writeFullOutputToDb(supabase, results)
-
-			// Clean up files and directories
+			// Delete the directory
 			err = os.RemoveAll(rootPathToDir + "/submissions")
 			util.Throw(err)
 
-			// ALL DONE :D
-			// Write response table to user
-			fmt.Fprint(w, resTable)
-
+			fmt.Fprintf(w, "Grading complete.\n")
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -223,11 +182,31 @@ func Server() {
 }
 
 func getFileContentFromURL(url string) []byte {
-	fileResp, err := http.Get(url)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	util.Throw(err)
+	supabaseKey := os.Getenv("SUPABASE_KEY")
+	req.Header.Add("Authorization", "Bearer "+supabaseKey)
+	req.Header.Add("apikey", supabaseKey)
+	fileResp, err := client.Do(req)
 	util.Throw(err)
 	fileContent, err := io.ReadAll(fileResp.Body)
 	defer fileResp.Body.Close()
 	util.Throw(err)
 
 	return fileContent
+}
+
+func calculateScoreMod(result util.SubmissionResult, tests []TestCase) (score int) {
+	var scorePossible int = 0
+	var scoreEarned int = 0
+	for i, feedback := range result.Feedback {
+		scorePossible += int(tests[i].Weight)
+		if feedback == "" {
+			scoreEarned += int(tests[i].Weight)
+		}
+	}
+
+	score = int((float64(scoreEarned) / float64(scorePossible)) * 100)
+	return
 }
